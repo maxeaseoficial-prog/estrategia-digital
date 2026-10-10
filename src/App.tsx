@@ -385,18 +385,34 @@ function Dashboard({
 }) {
   const [mode, setMode] = useState<CalendarMode>('month')
   const [currentDate, setCurrentDate] = useState(new Date())
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(nearestEvent?.id ?? null)
 
-  const countdown = nearestEvent ? daysUntil(nearestEvent.date) : null
+  useEffect(() => {
+    const selectedStillActive = activeEvents.some((event) => event.id === selectedEventId)
+
+    if (!selectedStillActive) {
+      setSelectedEventId(nearestEvent?.id ?? activeEvents[0]?.id ?? null)
+    }
+  }, [activeEvents, nearestEvent, selectedEventId])
+
+  const selectedEvent =
+    activeEvents.find((event) => event.id === selectedEventId) ?? nearestEvent ?? null
+
+  const countdown = selectedEvent ? daysUntil(selectedEvent.date) : null
+
+  const selectedEventCampaigns = selectedEvent
+    ? activeCampaigns.filter((campaign) => campaign.eventId === selectedEvent.id)
+    : activeCampaigns
 
   return (
     <div className="dashboard-stack">
       <section className="stats-grid">
         <article
           className="stat-card featured"
-          style={{ borderTop: `3px solid ${nearestEvent?.color || '#8C919A'}` }}
+          style={{ borderTop: `3px solid ${selectedEvent?.color || '#8C919A'}` }}
         >
-          <span>Próximo evento</span>
-          <strong>{nearestEvent?.name ?? 'Nenhum evento ativo'}</strong>
+          <span>Evento selecionado</span>
+          <strong>{selectedEvent?.name ?? 'Nenhum evento ativo'}</strong>
           <div className="stat-inline">
             <b>
               {countdown === null
@@ -407,7 +423,7 @@ function Dashboard({
                     ? `${countdown} dias`
                     : 'Encerrado'}
             </b>
-            <small>{nearestEvent ? formatDate(nearestEvent.date) : 'Crie o primeiro evento'}</small>
+            <small>{selectedEvent ? formatDate(selectedEvent.date) : 'Crie o primeiro evento'}</small>
           </div>
         </article>
 
@@ -415,29 +431,46 @@ function Dashboard({
           <div className="stat-icon"><Ticket size={20} /></div>
           <span>Ingressos vendidos</span>
           <strong>
-            {nearestEvent
-              ? `${nearestEvent.ticketsSold}/${nearestEvent.ticketsCapacity || '—'}`
+            {selectedEvent
+              ? `${selectedEvent.ticketsSold}/${selectedEvent.ticketsCapacity || '—'}`
               : '—'}
           </strong>
-          <small>{nearestEvent?.name ?? 'Sem evento ativo'}</small>
+          <small>{selectedEvent?.name ?? 'Sem evento ativo'}</small>
         </article>
 
         <article className="stat-card">
           <div className="stat-icon"><Megaphone size={20} /></div>
           <span>Campanhas ativas</span>
-          <strong>{activeCampaigns.length}</strong>
-          <small>{campaigns.length} campanha(s) cadastrada(s)</small>
+          <strong>{selectedEventCampaigns.length}</strong>
+          <small>
+            {selectedEvent
+              ? `vinculada(s) a ${selectedEvent.name}`
+              : `${campaigns.length} campanha(s) cadastrada(s)`}
+          </small>
         </article>
       </section>
 
       {activeEvents.length > 0 && (
-        <section className="event-strip">
+        <section className="event-strip" aria-label="Filtrar painel por evento">
           {activeEvents.slice(0, 4).map((event) => {
             const left = daysUntil(event.date)
+            const isSelected = event.id === selectedEvent?.id
+
             return (
               <article
                 key={event.id}
+                className={isSelected ? 'selected' : ''}
                 style={{ borderTop: `3px solid ${event.color || '#8C919A'}` }}
+                role="button"
+                tabIndex={0}
+                aria-pressed={isSelected}
+                onClick={() => setSelectedEventId(event.id)}
+                onKeyDown={(keyboardEvent) => {
+                  if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') {
+                    keyboardEvent.preventDefault()
+                    setSelectedEventId(event.id)
+                  }
+                }}
               >
                 <div>
                   <span
@@ -448,6 +481,7 @@ function Dashboard({
                 </div>
                 <p>{formatDate(event.date)}{event.time ? ` • ${event.time}` : ''}</p>
                 <b>{left === 0 ? 'Hoje' : left > 0 ? `Faltam ${left} dias` : 'Evento passado'}</b>
+                {isSelected && <span className="selected-event-label">Selecionado</span>}
               </article>
             )
           })}
