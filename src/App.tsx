@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import {
   CalendarDays,
+  CheckSquare2,
   ChevronLeft,
   ChevronRight,
   CirclePlus,
@@ -9,6 +10,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
+  Plus,
   Power,
   Search,
   Ticket,
@@ -43,6 +45,14 @@ type CampaignItem = {
   eventId: string
   color: string
   active: boolean
+}
+
+type TaskItem = {
+  id: string
+  title: string
+  date: string
+  description: string
+  completed: boolean
 }
 
 const months = [
@@ -151,15 +161,26 @@ const emptyCampaign: Omit<CampaignItem, 'id'> = {
   active: true,
 }
 
+const emptyTask: Omit<TaskItem, 'id'> = {
+  title: '',
+  date: toISODate(new Date()),
+  description: '',
+  completed: false,
+}
+
 function App() {
   const [page, setPage] = useState<Page>('dashboard')
   const [collapsed, setCollapsed] = useState(false)
   const [events, setEvents] = useStoredState<EventItem[]>('strategy-events', [])
   const [campaigns, setCampaigns] = useStoredState<CampaignItem[]>('strategy-campaigns', [])
+  const [tasks, setTasks] = useStoredState<TaskItem[]>('strategy-tasks', [])
   const [eventModal, setEventModal] = useState(false)
   const [campaignModal, setCampaignModal] = useState(false)
+  const [taskModal, setTaskModal] = useState(false)
+  const [taskDate, setTaskDate] = useState(toISODate(new Date()))
   const [editingEvent, setEditingEvent] = useState<EventItem | null>(null)
   const [editingCampaign, setEditingCampaign] = useState<CampaignItem | null>(null)
+  const [editingTask, setEditingTask] = useState<TaskItem | null>(null)
   const [search, setSearch] = useState('')
 
   const activeEvents = useMemo(
@@ -179,6 +200,12 @@ function App() {
   function openCampaign(item?: CampaignItem) {
     setEditingCampaign(item ?? null)
     setCampaignModal(true)
+  }
+
+  function openTask(date: string, item?: TaskItem) {
+    setTaskDate(item?.date ?? date)
+    setEditingTask(item ?? null)
+    setTaskModal(true)
   }
 
   function saveEvent(data: Omit<EventItem, 'id'>) {
@@ -205,6 +232,24 @@ function App() {
     }
     setCampaignModal(false)
     setEditingCampaign(null)
+  }
+
+  function saveTask(data: Omit<TaskItem, 'id'>) {
+    if (editingTask) {
+      setTasks((current) =>
+        current.map((item) => (item.id === editingTask.id ? { ...data, id: item.id } : item)),
+      )
+    } else {
+      setTasks((current) => [...current, { ...data, id: uid() }])
+    }
+    setTaskModal(false)
+    setEditingTask(null)
+  }
+
+  function removeTask(id: string) {
+    setTasks((current) => current.filter((item) => item.id !== id))
+    setTaskModal(false)
+    setEditingTask(null)
   }
 
   function removeEvent(id: string) {
@@ -298,11 +343,14 @@ function App() {
           <Dashboard
             events={events}
             campaigns={campaigns}
+            tasks={tasks}
             nearestEvent={nearestEvent}
             activeEvents={activeEvents}
             activeCampaigns={activeCampaigns}
             onCreateEvent={() => openEvent()}
             onCreateCampaign={() => openCampaign()}
+            onCreateTask={(date) => openTask(date)}
+            onEditTask={(task) => openTask(task.date, task)}
           />
         )}
 
@@ -364,6 +412,19 @@ function App() {
           onSave={saveCampaign}
         />
       )}
+
+      {taskModal && (
+        <TaskModal
+          value={editingTask}
+          initialDate={taskDate}
+          onClose={() => {
+            setTaskModal(false)
+            setEditingTask(null)
+          }}
+          onSave={saveTask}
+          onDelete={editingTask ? () => removeTask(editingTask.id) : undefined}
+        />
+      )}
     </div>
   )
 }
@@ -371,19 +432,25 @@ function App() {
 function Dashboard({
   events,
   campaigns,
+  tasks,
   nearestEvent,
   activeEvents,
   activeCampaigns,
   onCreateEvent,
   onCreateCampaign,
+  onCreateTask,
+  onEditTask,
 }: {
   events: EventItem[]
   campaigns: CampaignItem[]
+  tasks: TaskItem[]
   nearestEvent: EventItem | null
   activeEvents: EventItem[]
   activeCampaigns: CampaignItem[]
   onCreateEvent: () => void
   onCreateCampaign: () => void
+  onCreateTask: (date: string) => void
+  onEditTask: (task: TaskItem) => void
 }) {
   const [mode, setMode] = useState<CalendarMode>('month')
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -511,10 +578,13 @@ function Dashboard({
       <CalendarPanel
         events={events}
         campaigns={campaigns}
+        tasks={tasks}
         mode={mode}
         setMode={setMode}
         currentDate={currentDate}
         setCurrentDate={setCurrentDate}
+        onCreateTask={onCreateTask}
+        onEditTask={onEditTask}
       />
     </div>
   )
@@ -523,17 +593,23 @@ function Dashboard({
 function CalendarPanel({
   events,
   campaigns,
+  tasks,
   mode,
   setMode,
   currentDate,
   setCurrentDate,
+  onCreateTask,
+  onEditTask,
 }: {
   events: EventItem[]
   campaigns: CampaignItem[]
+  tasks: TaskItem[]
   mode: CalendarMode
   setMode: (mode: CalendarMode) => void
   currentDate: Date
   setCurrentDate: (date: Date) => void
+  onCreateTask: (date: string) => void
+  onEditTask: (task: TaskItem) => void
 }) {
   function move(direction: number) {
     const next = new Date(currentDate)
@@ -576,13 +652,34 @@ function CalendarPanel({
       </div>
 
       {mode === 'month' && (
-        <MonthCalendar currentDate={currentDate} events={events} campaigns={campaigns} />
+        <MonthCalendar
+          currentDate={currentDate}
+          events={events}
+          campaigns={campaigns}
+          tasks={tasks}
+          onCreateTask={onCreateTask}
+          onEditTask={onEditTask}
+        />
       )}
       {mode === 'week' && (
-        <WeekCalendar currentDate={currentDate} events={events} campaigns={campaigns} />
+        <WeekCalendar
+          currentDate={currentDate}
+          events={events}
+          campaigns={campaigns}
+          tasks={tasks}
+          onCreateTask={onCreateTask}
+          onEditTask={onEditTask}
+        />
       )}
       {mode === 'day' && (
-        <DayCalendar currentDate={currentDate} events={events} campaigns={campaigns} />
+        <DayCalendar
+          currentDate={currentDate}
+          events={events}
+          campaigns={campaigns}
+          tasks={tasks}
+          onCreateTask={onCreateTask}
+          onEditTask={onEditTask}
+        />
       )}
     </section>
   )
@@ -605,7 +702,12 @@ function readableTextColor(hexColor: string) {
   return luminance > 0.64 ? '#202328' : '#ffffff'
 }
 
-function itemsForDate(date: Date, events: EventItem[], campaigns: CampaignItem[]) {
+function itemsForDate(
+  date: Date,
+  events: EventItem[],
+  campaigns: CampaignItem[],
+  tasks: TaskItem[],
+) {
   const iso = toISODate(date)
   const eventItems = events
     .filter((item) => item.active && item.date === iso)
@@ -631,17 +733,35 @@ function itemsForDate(date: Date, events: EventItem[], campaigns: CampaignItem[]
       }
     })
 
-  return [...eventItems, ...campaignItems]
+  const taskItems = tasks
+    .filter((item) => item.date === iso)
+    .map((item) => ({
+      id: item.id,
+      name: item.title,
+      type: 'task' as const,
+      color: '#6B7280',
+      textColor: '#343840',
+      completed: item.completed,
+      task: item,
+    }))
+
+  return [...eventItems, ...campaignItems, ...taskItems]
 }
 
 function MonthCalendar({
   currentDate,
   events,
   campaigns,
+  tasks,
+  onCreateTask,
+  onEditTask,
 }: {
   currentDate: Date
   events: EventItem[]
   campaigns: CampaignItem[]
+  tasks: TaskItem[]
+  onCreateTask: (date: string) => void
+  onEditTask: (task: TaskItem) => void
 }) {
   const first = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
   const gridStart = startOfWeek(first)
@@ -754,14 +874,40 @@ function MonthCalendar({
                       }
                     })
 
-                  const items = [...eventItems, ...singleDayCampaignItems]
+                  const taskItems = tasks
+                    .filter((item) => item.date === iso)
+                    .map((item) => ({
+                      id: item.id,
+                      name: item.title,
+                      type: 'task' as const,
+                      color: '#6B7280',
+                      textColor: '#343840',
+                      completed: item.completed,
+                      task: item,
+                    }))
+
+                  const items = [...eventItems, ...singleDayCampaignItems, ...taskItems]
 
                   return (
                     <div
                       className={`day-cell ${isOutside ? 'outside' : ''} ${iso === todayIso ? 'today' : ''}`}
                       key={iso}
                     >
-                      <span className="day-number">{date.getDate()}</span>
+                      <div className="day-cell-header">
+                        <span className="day-number">{date.getDate()}</span>
+                        <button
+                          className="day-add-task"
+                          type="button"
+                          title={`Criar tarefa em ${formatDate(iso)}`}
+                          aria-label={`Criar tarefa em ${formatDate(iso)}`}
+                          onClick={(clickEvent) => {
+                            clickEvent.stopPropagation()
+                            onCreateTask(iso)
+                          }}
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </div>
 
                       <div
                         className="calendar-items"
@@ -778,10 +924,25 @@ function MonthCalendar({
                                     background: item.color,
                                     color: item.textColor,
                                   }
-                                : { borderLeftColor: item.color }
+                                : item.type === 'task'
+                                  ? { borderLeftColor: item.color }
+                                  : { borderLeftColor: item.color }
                             }
+                            onClick={
+                              item.type === 'task'
+                                ? (clickEvent) => {
+                                    clickEvent.stopPropagation()
+                                    onEditTask(item.task)
+                                  }
+                                : undefined
+                            }
+                            role={item.type === 'task' ? 'button' : undefined}
+                            title={item.type === 'task' ? 'Editar tarefa' : item.name}
                           >
-                            {item.name}
+                            {item.type === 'task' && <CheckSquare2 size={11} />}
+                            <span className={item.type === 'task' && item.completed ? 'task-completed' : ''}>
+                              {item.name}
+                            </span>
                           </div>
                         ))}
                         {items.length > 3 && <small>+{items.length - 3} item(ns)</small>}
@@ -823,21 +984,37 @@ function WeekCalendar({
   currentDate,
   events,
   campaigns,
+  tasks,
+  onCreateTask,
+  onEditTask,
 }: {
   currentDate: Date
   events: EventItem[]
   campaigns: CampaignItem[]
+  tasks: TaskItem[]
+  onCreateTask: (date: string) => void
+  onEditTask: (task: TaskItem) => void
 }) {
   const start = startOfWeek(currentDate)
   return (
     <div className="week-calendar">
       {Array.from({ length: 7 }, (_, index) => addDays(start, index)).map((date, index) => {
-        const items = itemsForDate(date, events, campaigns)
+        const items = itemsForDate(date, events, campaigns, tasks)
         return (
           <div className="week-column" key={toISODate(date)}>
             <header>
-              <span>{weekDays[index]}</span>
-              <strong>{date.getDate()}</strong>
+              <div>
+                <span>{weekDays[index]}</span>
+                <strong>{date.getDate()}</strong>
+              </div>
+              <button
+                className="day-add-task"
+                type="button"
+                title={`Criar tarefa em ${formatDate(toISODate(date))}`}
+                onClick={() => onCreateTask(toISODate(date))}
+              >
+                <Plus size={13} />
+              </button>
             </header>
             <div className="week-column-body">
               {items.length === 0 && <small>Sem itens</small>}
@@ -854,11 +1031,15 @@ function WeekCalendar({
                         }
                       : { borderLeftColor: item.color }
                   }
+                  onClick={item.type === 'task' ? () => onEditTask(item.task) : undefined}
+                  role={item.type === 'task' ? 'button' : undefined}
                 >
                   <span style={item.type === 'campaign' ? { color: item.textColor, opacity: 0.78 } : undefined}>
-                    {item.type === 'event' ? 'Evento' : 'Campanha'}
+                    {item.type === 'event' ? 'Evento' : item.type === 'campaign' ? 'Campanha' : 'Tarefa'}
                   </span>
-                  {item.name}
+                  <span className={item.type === 'task' && item.completed ? 'task-completed' : ''}>
+                    {item.name}
+                  </span>
                 </div>
               ))}
             </div>
@@ -873,15 +1054,29 @@ function DayCalendar({
   currentDate,
   events,
   campaigns,
+  tasks,
+  onCreateTask,
+  onEditTask,
 }: {
   currentDate: Date
   events: EventItem[]
   campaigns: CampaignItem[]
+  tasks: TaskItem[]
+  onCreateTask: (date: string) => void
+  onEditTask: (task: TaskItem) => void
 }) {
-  const items = itemsForDate(currentDate, events, campaigns)
+  const items = itemsForDate(currentDate, events, campaigns, tasks)
   return (
     <div className="day-calendar">
       <div className="day-calendar-date">
+        <button
+          className="day-view-add-task"
+          type="button"
+          onClick={() => onCreateTask(toISODate(currentDate))}
+          title="Criar tarefa neste dia"
+        >
+          <Plus size={16} /> Tarefa
+        </button>
         <strong>{currentDate.getDate()}</strong>
         <span>{months[currentDate.getMonth()]}</span>
       </div>
@@ -889,7 +1084,7 @@ function DayCalendar({
         {items.length === 0 && (
           <div className="empty-state compact">
             <CalendarDays size={24} />
-            <p>Nenhum evento ou campanha neste dia.</p>
+            <p>Nenhum evento, campanha ou tarefa neste dia.</p>
           </div>
         )}
         {items.map((item) => (
@@ -904,11 +1099,15 @@ function DayCalendar({
                   }
                 : { borderLeft: `4px solid ${item.color}` }
             }
+            onClick={item.type === 'task' ? () => onEditTask(item.task) : undefined}
+            role={item.type === 'task' ? 'button' : undefined}
           >
             <span style={item.type === 'campaign' ? { color: item.textColor, opacity: 0.78 } : undefined}>
-              {item.type === 'event' ? 'Evento' : 'Campanha'}
+              {item.type === 'event' ? 'Evento' : item.type === 'campaign' ? 'Campanha' : 'Tarefa'}
             </span>
-            <strong>{item.name}</strong>
+            <strong className={item.type === 'task' && item.completed ? 'task-completed' : ''}>
+              {item.name}
+            </strong>
           </article>
         ))}
       </div>
@@ -1476,6 +1675,107 @@ function CampaignModal({
         <div className="modal-actions full">
           <button type="button" className="secondary-button" onClick={onClose}>Cancelar</button>
           <button type="submit" className="primary-button">Salvar campanha</button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+function TaskModal({
+  value,
+  initialDate,
+  onClose,
+  onSave,
+  onDelete,
+}: {
+  value: TaskItem | null
+  initialDate: string
+  onClose: () => void
+  onSave: (data: Omit<TaskItem, 'id'>) => void
+  onDelete?: () => void
+}) {
+  const [form, setForm] = useState<Omit<TaskItem, 'id'>>({
+    ...emptyTask,
+    date: initialDate,
+  })
+
+  useEffect(() => {
+    if (value) {
+      const { id: _id, ...rest } = value
+      setForm(rest)
+    } else {
+      setForm({
+        ...emptyTask,
+        date: initialDate,
+      })
+    }
+  }, [value, initialDate])
+
+  function submit(event: FormEvent) {
+    event.preventDefault()
+    if (!form.title.trim() || !form.date) return
+    onSave(form)
+  }
+
+  return (
+    <Modal
+      title={value ? 'Editar tarefa' : 'Nova tarefa'}
+      subtitle={`Tarefa do dia ${formatDate(form.date || initialDate)}.`}
+      onClose={onClose}
+    >
+      <form className="form-grid" onSubmit={submit}>
+        <label className="full">
+          Tarefa
+          <input
+            required
+            autoFocus
+            value={form.title}
+            onChange={(event) => setForm({ ...form, title: event.target.value })}
+            placeholder="Ex.: revisar criativos da campanha"
+          />
+        </label>
+
+        <label>
+          Data
+          <input
+            type="date"
+            required
+            value={form.date}
+            onChange={(event) => setForm({ ...form, date: event.target.value })}
+          />
+        </label>
+
+        <label className="task-status-field">
+          Status
+          <label className="switch-row task-complete-toggle">
+            <input
+              type="checkbox"
+              checked={form.completed}
+              onChange={(event) => setForm({ ...form, completed: event.target.checked })}
+            />
+            <span>Concluída</span>
+          </label>
+        </label>
+
+        <label className="full">
+          Descrição
+          <textarea
+            rows={4}
+            value={form.description}
+            onChange={(event) => setForm({ ...form, description: event.target.value })}
+            placeholder="Detalhes, contexto ou observações da tarefa..."
+          />
+        </label>
+
+        <div className="modal-actions full task-modal-actions">
+          {onDelete && (
+            <button type="button" className="secondary-button task-delete-button" onClick={onDelete}>
+              <Trash2 size={16} /> Excluir
+            </button>
+          )}
+          <span className="task-actions-spacer" />
+          <button type="button" className="secondary-button" onClick={onClose}>Cancelar</button>
+          <button type="submit" className="primary-button">Salvar tarefa</button>
         </div>
       </form>
     </Modal>
