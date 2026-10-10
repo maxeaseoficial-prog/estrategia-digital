@@ -622,40 +622,154 @@ function MonthCalendar({
 }) {
   const first = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
   const gridStart = startOfWeek(first)
-  const days = Array.from({ length: 42 }, (_, index) => addDays(gridStart, index))
   const todayIso = toISODate(new Date())
+  const weeks = Array.from({ length: 6 }, (_, weekIndex) =>
+    Array.from({ length: 7 }, (_, dayIndex) => addDays(gridStart, weekIndex * 7 + dayIndex)),
+  )
 
   return (
     <div className="month-calendar">
-      <div className="week-header">
-        {weekDays.map((day) => <span key={day}>{day}</span>)}
-      </div>
-      <div className="month-grid">
-        {days.map((date) => {
-          const items = itemsForDate(date, events, campaigns)
-          const isOutside = date.getMonth() !== currentDate.getMonth()
-          const iso = toISODate(date)
-          return (
-            <div
-              className={`day-cell ${isOutside ? 'outside' : ''} ${iso === todayIso ? 'today' : ''}`}
-              key={iso}
-            >
-              <span className="day-number">{date.getDate()}</span>
-              <div className="calendar-items">
-                {items.slice(0, 3).map((item) => (
-                  <div
-                    className={`calendar-chip ${item.type}`}
-                    key={`${item.type}-${item.id}`}
-                    style={{ borderLeftColor: item.color }}
-                  >
-                    {item.name}
+      <div className="month-calendar-inner">
+        <div className="week-header">
+          {weekDays.map((day) => <span key={day}>{day}</span>)}
+        </div>
+
+        <div className="month-weeks">
+          {weeks.map((weekDaysList, weekIndex) => {
+            const weekStartDate = weekDaysList[0]
+            const weekEndDate = weekDaysList[6]
+
+            const campaignRanges = campaigns
+              .filter((campaign) => {
+                if (!campaign.active || campaign.startDate === campaign.endDate) return false
+
+                const campaignStart = parseDate(campaign.startDate)
+                const campaignEnd = parseDate(campaign.endDate)
+
+                return campaignStart <= weekEndDate && campaignEnd >= weekStartDate
+              })
+              .map((campaign) => {
+                const campaignStart = parseDate(campaign.startDate)
+                const campaignEnd = parseDate(campaign.endDate)
+                const clippedStart = campaignStart < weekStartDate ? weekStartDate : campaignStart
+                const clippedEnd = campaignEnd > weekEndDate ? weekEndDate : campaignEnd
+
+                const startCol = Math.round(
+                  (startOfDay(clippedStart).getTime() - startOfDay(weekStartDate).getTime()) / 86400000,
+                )
+                const endCol = Math.round(
+                  (startOfDay(clippedEnd).getTime() - startOfDay(weekStartDate).getTime()) / 86400000,
+                )
+
+                return {
+                  ...campaign,
+                  startCol,
+                  endCol,
+                  startsBefore: campaignStart < weekStartDate,
+                  continuesAfter: campaignEnd > weekEndDate,
+                }
+              })
+              .sort((a, b) => a.startCol - b.startCol || a.endCol - b.endCol)
+
+            const laneEnds: number[] = []
+            const campaignSegments = campaignRanges.map((campaign) => {
+              let lane = laneEnds.findIndex((endCol) => campaign.startCol > endCol)
+
+              if (lane === -1) {
+                lane = laneEnds.length
+                laneEnds.push(campaign.endCol)
+              } else {
+                laneEnds[lane] = campaign.endCol
+              }
+
+              return { ...campaign, lane }
+            })
+
+            const laneCount = laneEnds.length
+            const rowHeight = Math.max(112, 112 + Math.max(0, laneCount - 1) * 25)
+
+            return (
+              <div
+                className="month-week"
+                key={`week-${weekIndex}`}
+                style={{ minHeight: `${rowHeight}px` }}
+              >
+                {weekDaysList.map((date) => {
+                  const iso = toISODate(date)
+                  const isOutside = date.getMonth() !== currentDate.getMonth()
+
+                  const eventItems = events
+                    .filter((item) => item.active && item.date === iso)
+                    .map((item) => ({
+                      id: item.id,
+                      name: item.name,
+                      type: 'event' as const,
+                      color: item.color || '#8C919A',
+                    }))
+
+                  const singleDayCampaignItems = campaigns
+                    .filter(
+                      (item) =>
+                        item.active &&
+                        item.startDate === item.endDate &&
+                        item.startDate === iso,
+                    )
+                    .map((item) => ({
+                      id: item.id,
+                      name: item.name,
+                      type: 'campaign' as const,
+                      color: '#C4C8CE',
+                    }))
+
+                  const items = [...eventItems, ...singleDayCampaignItems]
+
+                  return (
+                    <div
+                      className={`day-cell ${isOutside ? 'outside' : ''} ${iso === todayIso ? 'today' : ''}`}
+                      key={iso}
+                    >
+                      <span className="day-number">{date.getDate()}</span>
+
+                      <div
+                        className="calendar-items"
+                        style={{ marginTop: laneCount > 0 ? `${8 + laneCount * 25}px` : '5px' }}
+                      >
+                        {items.slice(0, 3).map((item) => (
+                          <div
+                            className={`calendar-chip ${item.type}`}
+                            key={`${item.type}-${item.id}`}
+                            style={{ borderLeftColor: item.color }}
+                          >
+                            {item.name}
+                          </div>
+                        ))}
+                        {items.length > 3 && <small>+{items.length - 3} item(ns)</small>}
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {campaignSegments.length > 0 && (
+                  <div className="campaign-span-layer" aria-label="Campanhas contínuas">
+                    {campaignSegments.map((campaign) => (
+                      <div
+                        key={`${campaign.id}-${weekIndex}`}
+                        className={`campaign-span ${campaign.startsBefore ? 'continues-left' : ''} ${campaign.continuesAfter ? 'continues-right' : ''}`}
+                        style={{
+                          gridColumn: `${campaign.startCol + 1} / span ${campaign.endCol - campaign.startCol + 1}`,
+                          gridRow: campaign.lane + 1,
+                        }}
+                        title={campaign.name}
+                      >
+                        <span>{campaign.name}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-                {items.length > 3 && <small>+{items.length - 3} item(ns)</small>}
+                )}
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
     </div>
   )
