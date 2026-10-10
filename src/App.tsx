@@ -41,6 +41,7 @@ type CampaignItem = {
   channel: string
   goal: string
   eventId: string
+  color: string
   active: boolean
 }
 
@@ -146,6 +147,7 @@ const emptyCampaign: Omit<CampaignItem, 'id'> = {
   channel: 'Instagram',
   goal: '',
   eventId: '',
+  color: '#8C919A',
   active: true,
 }
 
@@ -871,11 +873,31 @@ function CampaignsPage({
         <div className="entity-list campaign-list">
           {filtered.map((campaign) => {
             const linkedEvent = events.find((item) => item.id === campaign.eventId)
+            const displayColor = linkedEvent?.color || campaign.color || '#8C919A'
+
             return (
-              <article key={campaign.id} className={!campaign.active ? 'inactive' : ''}>
-                <div className="campaign-icon"><Megaphone size={21} /></div>
+              <article
+                key={campaign.id}
+                className={!campaign.active ? 'inactive' : ''}
+                style={{ borderLeft: `4px solid ${displayColor}` }}
+              >
+                <div
+                  className="campaign-icon"
+                  style={{
+                    borderColor: displayColor,
+                    color: displayColor,
+                    background: `${displayColor}12`,
+                  }}
+                >
+                  <Megaphone size={21} />
+                </div>
                 <div className="entity-main">
                   <div className="entity-heading">
+                    <span
+                      className="campaign-color-dot"
+                      style={{ background: displayColor }}
+                      title={linkedEvent ? `Cor herdada de ${linkedEvent.name}` : 'Cor da campanha'}
+                    />
                     <h3>{campaign.name}</h3>
                     <span className={`status-pill ${campaign.active ? 'active' : ''}`}>
                       {campaign.active ? 'Ativa' : 'Inativa'}
@@ -1120,7 +1142,10 @@ function CampaignModal({
   useEffect(() => {
     if (value) {
       const { id: _id, ...rest } = value
-      setForm(rest)
+      setForm({
+        ...rest,
+        color: rest.color || '#8C919A',
+      })
     } else {
       setForm(emptyCampaign)
     }
@@ -1193,6 +1218,58 @@ function CampaignModal({
             ))}
           </select>
         </label>
+
+        {form.eventId ? (
+          <div className="campaign-color-inherited full">
+            {(() => {
+              const linkedEvent = events.find((event) => event.id === form.eventId)
+              const inheritedColor = linkedEvent?.color || '#8C919A'
+
+              return (
+                <>
+                  <span
+                    className="campaign-color-preview"
+                    style={{ background: inheritedColor }}
+                  />
+                  <div>
+                    <strong>Cor herdada do evento</strong>
+                    <small>
+                      Esta campanha seguirá automaticamente a cor de {linkedEvent?.name || 'evento selecionado'}.
+                    </small>
+                  </div>
+                </>
+              )
+            })()}
+          </div>
+        ) : (
+          <label className="full">
+            Cor da campanha
+            <div className="color-picker-row">
+              <input
+                className="color-input"
+                type="color"
+                value={form.color || '#8C919A'}
+                onChange={(event) => setForm({ ...form, color: event.target.value })}
+                aria-label="Escolher cor da campanha"
+              />
+              <div className="color-presets">
+                {['#8C919A', '#3B82F6', '#D97945', '#9674C3', '#2E8B57', '#D94B4B'].map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    className={`color-preset ${form.color === color ? 'selected' : ''}`}
+                    style={{ background: color }}
+                    onClick={() => setForm({ ...form, color })}
+                    title={color}
+                    aria-label={`Usar cor ${color}`}
+                  />
+                ))}
+              </div>
+              <span className="color-value">{(form.color || '#8C919A').toUpperCase()}</span>
+            </div>
+          </label>
+        )}
+
         <label className="full">
           Objetivo
           <input
