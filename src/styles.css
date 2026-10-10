@@ -1304,3 +1304,59 @@ select:focus-visible {
   text-transform: uppercase;
   letter-spacing: .06em;
 }
+
+
+/* Campaign colors — only in the Campaigns tab */
+.campaign-list > article {
+  border-left-width: 4px;
+  border-left-style: solid;
+  padding-left: 12px;
+}
+
+.campaign-color-dot {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(60, 64, 70, .06);
+}
+
+.campaign-color-inherited {
+  min-height: 58px;
+  display: flex;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 12px !important;
+  padding: 10px 12px;
+  border: 1px solid var(--silver-300);
+  border-radius: 10px;
+  background: var(--silver-050);
+  text-transform: none !important;
+  letter-spacing: normal !important;
+}
+
+.campaign-color-preview {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border-radius: 9px;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.08);
+}
+
+.campaign-color-inherited div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.campaign-color-inherited strong {
+  color: var(--silver-800);
+  font-size: 11px;
+}
+
+.campaign-color-inherited small {
+  color: var(--silver-500);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.4;
+}
