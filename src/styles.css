@@ -1260,3 +1260,47 @@ select:focus-visible {
     margin-left: 54px;
   }
 }
+
+
+/* Dashboard event filter */
+.event-strip article {
+  position: relative;
+  cursor: pointer;
+  transition:
+    border-color .18s ease,
+    transform .18s ease,
+    box-shadow .18s ease,
+    background .18s ease;
+}
+
+.event-strip article:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(31, 35, 41, .08);
+}
+
+.event-strip article:focus-visible {
+  outline: 2px solid #5f646c;
+  outline-offset: 2px;
+}
+
+.event-strip article.selected {
+  background: #ffffff;
+  box-shadow:
+    0 10px 28px rgba(31, 35, 41, .10),
+    inset 0 0 0 1px #cfd2d7;
+}
+
+.selected-event-label {
+  position: absolute;
+  top: 10px;
+  right: 11px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: #545a62;
+  background: #eef0f2;
+  border: 1px solid #d9dce0;
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
