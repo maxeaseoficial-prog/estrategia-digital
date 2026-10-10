@@ -872,9 +872,7 @@ function EventModal({
   onClose: () => void
   onSave: (data: Omit<EventItem, 'id'>) => void
 }) {
-  const [form, setForm] = useState<Omit<EventItem, 'id'>>(
-    value ? { ...value, id: undefined } as never : emptyEvent,
-  )
+  const [form, setForm] = useState<Omit<EventItem, 'id'>>(emptyEvent)
 
   useEffect(() => {
     if (value) {
