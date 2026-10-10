@@ -28,6 +28,7 @@ type EventItem = {
   description: string
   ticketsSold: number
   ticketsCapacity: number
+  color: string
   active: boolean
 }
 
@@ -133,6 +134,7 @@ const emptyEvent: Omit<EventItem, 'id'> = {
   description: '',
   ticketsSold: 0,
   ticketsCapacity: 0,
+  color: '#8C919A',
   active: true,
 }
 
@@ -389,7 +391,10 @@ function Dashboard({
   return (
     <div className="dashboard-stack">
       <section className="stats-grid">
-        <article className="stat-card featured">
+        <article
+          className="stat-card featured"
+          style={{ borderTop: `3px solid ${nearestEvent?.color || '#8C919A'}` }}
+        >
           <span>Próximo evento</span>
           <strong>{nearestEvent?.name ?? 'Nenhum evento ativo'}</strong>
           <div className="stat-inline">
@@ -430,9 +435,15 @@ function Dashboard({
           {activeEvents.slice(0, 4).map((event) => {
             const left = daysUntil(event.date)
             return (
-              <article key={event.id}>
+              <article
+                key={event.id}
+                style={{ borderTop: `3px solid ${event.color || '#8C919A'}` }}
+              >
                 <div>
-                  <span className="status-dot" />
+                  <span
+                    className="status-dot"
+                    style={{ background: event.color || '#8C919A', boxShadow: `0 0 0 3px ${event.color || '#8C919A'}22` }}
+                  />
                   <strong>{event.name}</strong>
                 </div>
                 <p>{formatDate(event.date)}{event.time ? ` • ${event.time}` : ''}</p>
@@ -545,11 +556,21 @@ function itemsForDate(date: Date, events: EventItem[], campaigns: CampaignItem[]
   const iso = toISODate(date)
   const eventItems = events
     .filter((item) => item.active && item.date === iso)
-    .map((item) => ({ id: item.id, name: item.name, type: 'event' as const }))
+    .map((item) => ({
+      id: item.id,
+      name: item.name,
+      type: 'event' as const,
+      color: item.color || '#8C919A',
+    }))
 
   const campaignItems = campaigns
     .filter((item) => item.active && iso >= item.startDate && iso <= item.endDate)
-    .map((item) => ({ id: item.id, name: item.name, type: 'campaign' as const }))
+    .map((item) => ({
+      id: item.id,
+      name: item.name,
+      type: 'campaign' as const,
+      color: '#C4C8CE',
+    }))
 
   return [...eventItems, ...campaignItems]
 }
@@ -586,7 +607,11 @@ function MonthCalendar({
               <span className="day-number">{date.getDate()}</span>
               <div className="calendar-items">
                 {items.slice(0, 3).map((item) => (
-                  <div className={`calendar-chip ${item.type}`} key={`${item.type}-${item.id}`}>
+                  <div
+                    className={`calendar-chip ${item.type}`}
+                    key={`${item.type}-${item.id}`}
+                    style={{ borderLeftColor: item.color }}
+                  >
                     {item.name}
                   </div>
                 ))}
@@ -623,7 +648,11 @@ function WeekCalendar({
             <div className="week-column-body">
               {items.length === 0 && <small>Sem itens</small>}
               {items.map((item) => (
-                <div className={`calendar-chip large ${item.type}`} key={`${item.type}-${item.id}`}>
+                <div
+                  className={`calendar-chip large ${item.type}`}
+                  key={`${item.type}-${item.id}`}
+                  style={{ borderLeftColor: item.color }}
+                >
                   <span>{item.type === 'event' ? 'Evento' : 'Campanha'}</span>
                   {item.name}
                 </div>
@@ -660,7 +689,10 @@ function DayCalendar({
           </div>
         )}
         {items.map((item) => (
-          <article key={`${item.type}-${item.id}`}>
+          <article
+            key={`${item.type}-${item.id}`}
+            style={{ borderLeft: `4px solid ${item.color}` }}
+          >
             <span>{item.type === 'event' ? 'Evento' : 'Campanha'}</span>
             <strong>{item.name}</strong>
           </article>
@@ -713,12 +745,20 @@ function EventsPage({
         <div className="entity-list">
           {filtered.map((event) => (
             <article key={event.id} className={!event.active ? 'inactive' : ''}>
-              <div className="date-tile">
+              <div
+                className="date-tile"
+                style={{ borderColor: event.color || '#8C919A' }}
+              >
                 <strong>{parseDate(event.date).getDate()}</strong>
                 <span>{months[parseDate(event.date).getMonth()].slice(0, 3)}</span>
               </div>
               <div className="entity-main">
                 <div className="entity-heading">
+                  <span
+                    className="event-color-dot"
+                    style={{ background: event.color || '#8C919A' }}
+                    title="Cor do evento"
+                  />
                   <h3>{event.name}</h3>
                   <span className={`status-pill ${event.active ? 'active' : ''}`}>
                     {event.active ? 'Ativo' : 'Inativo'}
@@ -886,7 +926,10 @@ function EventModal({
   useEffect(() => {
     if (value) {
       const { id: _id, ...rest } = value
-      setForm(rest)
+      setForm({
+        ...rest,
+        color: rest.color || '#8C919A',
+      })
     } else {
       setForm({
         ...emptyEvent,
@@ -974,6 +1017,32 @@ function EventModal({
               })
             }
           />
+        </label>
+        <label className="full">
+          Cor do evento
+          <div className="color-picker-row">
+            <input
+              className="color-input"
+              type="color"
+              value={form.color || '#8C919A'}
+              onChange={(event) => setForm({ ...form, color: event.target.value })}
+              aria-label="Escolher cor do evento"
+            />
+            <div className="color-presets">
+              {['#8C919A', '#3B82F6', '#D97945', '#9674C3', '#2E8B57', '#D94B4B'].map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  className={`color-preset ${form.color === color ? 'selected' : ''}`}
+                  style={{ background: color }}
+                  onClick={() => setForm({ ...form, color })}
+                  title={color}
+                  aria-label={`Usar cor ${color}`}
+                />
+              ))}
+            </div>
+            <span className="color-value">{(form.color || '#8C919A').toUpperCase()}</span>
+          </div>
         </label>
         <label className="full">
           Descrição
