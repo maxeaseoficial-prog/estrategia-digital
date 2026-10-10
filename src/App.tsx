@@ -588,6 +588,23 @@ function CalendarPanel({
   )
 }
 
+function effectiveCampaignColor(campaign: CampaignItem, events: EventItem[]) {
+  const linkedEvent = events.find((event) => event.id === campaign.eventId)
+  return linkedEvent?.color || campaign.color || '#8C919A'
+}
+
+function readableTextColor(hexColor: string) {
+  const normalized = hexColor.replace('#', '')
+  if (normalized.length !== 6) return '#ffffff'
+
+  const r = Number.parseInt(normalized.slice(0, 2), 16)
+  const g = Number.parseInt(normalized.slice(2, 4), 16)
+  const b = Number.parseInt(normalized.slice(4, 6), 16)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+
+  return luminance > 0.64 ? '#202328' : '#ffffff'
+}
+
 function itemsForDate(date: Date, events: EventItem[], campaigns: CampaignItem[]) {
   const iso = toISODate(date)
   const eventItems = events
@@ -597,16 +614,22 @@ function itemsForDate(date: Date, events: EventItem[], campaigns: CampaignItem[]
       name: item.name,
       type: 'event' as const,
       color: item.color || '#8C919A',
+      textColor: '#33373d',
     }))
 
   const campaignItems = campaigns
     .filter((item) => item.active && iso >= item.startDate && iso <= item.endDate)
-    .map((item) => ({
-      id: item.id,
-      name: item.name,
-      type: 'campaign' as const,
-      color: '#C4C8CE',
-    }))
+    .map((item) => {
+      const color = effectiveCampaignColor(item, events)
+
+      return {
+        id: item.id,
+        name: item.name,
+        type: 'campaign' as const,
+        color,
+        textColor: readableTextColor(color),
+      }
+    })
 
   return [...eventItems, ...campaignItems]
 }
@@ -661,8 +684,12 @@ function MonthCalendar({
                   (startOfDay(clippedEnd).getTime() - startOfDay(weekStartDate).getTime()) / 86400000,
                 )
 
+                const color = effectiveCampaignColor(campaign, events)
+
                 return {
                   ...campaign,
+                  color,
+                  textColor: readableTextColor(color),
                   startCol,
                   endCol,
                   startsBefore: campaignStart < weekStartDate,
@@ -705,6 +732,7 @@ function MonthCalendar({
                       name: item.name,
                       type: 'event' as const,
                       color: item.color || '#8C919A',
+                      textColor: '#33373d',
                     }))
 
                   const singleDayCampaignItems = campaigns
@@ -714,12 +742,17 @@ function MonthCalendar({
                         item.startDate === item.endDate &&
                         item.startDate === iso,
                     )
-                    .map((item) => ({
-                      id: item.id,
-                      name: item.name,
-                      type: 'campaign' as const,
-                      color: '#C4C8CE',
-                    }))
+                    .map((item) => {
+                      const color = effectiveCampaignColor(item, events)
+
+                      return {
+                        id: item.id,
+                        name: item.name,
+                        type: 'campaign' as const,
+                        color,
+                        textColor: readableTextColor(color),
+                      }
+                    })
 
                   const items = [...eventItems, ...singleDayCampaignItems]
 
@@ -738,7 +771,15 @@ function MonthCalendar({
                           <div
                             className={`calendar-chip ${item.type}`}
                             key={`${item.type}-${item.id}`}
-                            style={{ borderLeftColor: item.color }}
+                            style={
+                              item.type === 'campaign'
+                                ? {
+                                    borderLeftColor: item.color,
+                                    background: item.color,
+                                    color: item.textColor,
+                                  }
+                                : { borderLeftColor: item.color }
+                            }
                           >
                             {item.name}
                           </div>
@@ -758,6 +799,9 @@ function MonthCalendar({
                         style={{
                           gridColumn: `${campaign.startCol + 1} / span ${campaign.endCol - campaign.startCol + 1}`,
                           gridRow: campaign.lane + 1,
+                          background: campaign.color,
+                          borderColor: campaign.color,
+                          color: campaign.textColor,
                         }}
                         title={campaign.name}
                       >
@@ -801,9 +845,19 @@ function WeekCalendar({
                 <div
                   className={`calendar-chip large ${item.type}`}
                   key={`${item.type}-${item.id}`}
-                  style={{ borderLeftColor: item.color }}
+                  style={
+                    item.type === 'campaign'
+                      ? {
+                          borderLeftColor: item.color,
+                          background: item.color,
+                          color: item.textColor,
+                        }
+                      : { borderLeftColor: item.color }
+                  }
                 >
-                  <span>{item.type === 'event' ? 'Evento' : 'Campanha'}</span>
+                  <span style={item.type === 'campaign' ? { color: item.textColor, opacity: 0.78 } : undefined}>
+                    {item.type === 'event' ? 'Evento' : 'Campanha'}
+                  </span>
                   {item.name}
                 </div>
               ))}
@@ -841,9 +895,19 @@ function DayCalendar({
         {items.map((item) => (
           <article
             key={`${item.type}-${item.id}`}
-            style={{ borderLeft: `4px solid ${item.color}` }}
+            style={
+              item.type === 'campaign'
+                ? {
+                    borderLeft: `4px solid ${item.color}`,
+                    background: item.color,
+                    color: item.textColor,
+                  }
+                : { borderLeft: `4px solid ${item.color}` }
+            }
           >
-            <span>{item.type === 'event' ? 'Evento' : 'Campanha'}</span>
+            <span style={item.type === 'campaign' ? { color: item.textColor, opacity: 0.78 } : undefined}>
+              {item.type === 'event' ? 'Evento' : 'Campanha'}
+            </span>
             <strong>{item.name}</strong>
           </article>
         ))}
