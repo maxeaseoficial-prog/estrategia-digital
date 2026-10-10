@@ -863,6 +863,11 @@ function Modal({
   )
 }
 
+type EventFormState = Omit<EventItem, 'id' | 'ticketsSold' | 'ticketsCapacity'> & {
+  ticketsSold: number | ''
+  ticketsCapacity: number | ''
+}
+
 function EventModal({
   value,
   onClose,
@@ -872,14 +877,22 @@ function EventModal({
   onClose: () => void
   onSave: (data: Omit<EventItem, 'id'>) => void
 }) {
-  const [form, setForm] = useState<Omit<EventItem, 'id'>>(emptyEvent)
+  const [form, setForm] = useState<EventFormState>({
+    ...emptyEvent,
+    ticketsSold: '',
+    ticketsCapacity: '',
+  })
 
   useEffect(() => {
     if (value) {
       const { id: _id, ...rest } = value
       setForm(rest)
     } else {
-      setForm(emptyEvent)
+      setForm({
+        ...emptyEvent,
+        ticketsSold: '',
+        ticketsCapacity: '',
+      })
     }
   }, [value])
 
@@ -940,7 +953,12 @@ function EventModal({
             type="number"
             min="0"
             value={form.ticketsSold}
-            onChange={(event) => setForm({ ...form, ticketsSold: Number(event.target.value) })}
+            onChange={(event) =>
+              setForm({
+                ...form,
+                ticketsSold: event.target.value === '' ? '' : Number(event.target.value),
+              })
+            }
           />
         </label>
         <label>
@@ -949,7 +967,12 @@ function EventModal({
             type="number"
             min="0"
             value={form.ticketsCapacity}
-            onChange={(event) => setForm({ ...form, ticketsCapacity: Number(event.target.value) })}
+            onChange={(event) =>
+              setForm({
+                ...form,
+                ticketsCapacity: event.target.value === '' ? '' : Number(event.target.value),
+              })
+            }
           />
         </label>
         <label className="full">
