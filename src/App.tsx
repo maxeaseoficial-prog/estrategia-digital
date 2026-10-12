@@ -1070,8 +1070,8 @@ function MonthCalendar({
                       id: item.id,
                       name: item.title,
                       type: 'task' as const,
-                      color: '#6B7280',
-                      textColor: '#343840',
+                      color: item.color || '#6B7280',
+                      textColor: readableTextColor(item.color || '#6B7280'),
                       completed: item.completed,
                       task: item,
                     }))
