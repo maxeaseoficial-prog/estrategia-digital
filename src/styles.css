@@ -1466,16 +1466,15 @@ select:focus-visible {
   align-items: center;
   gap: 5px;
   cursor: pointer;
-  color: #3f444b;
-  background: #f7f8f9;
-  border-left-color: #6b7280;
-  border-top: 1px dashed #d7dade;
-  border-right: 1px dashed #d7dade;
-  border-bottom: 1px dashed #d7dade;
+  border-left-width: 3px;
+  border-left-style: solid;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
 }
 
 .calendar-chip.task:hover {
-  background: #eef0f2;
+  filter: brightness(.96);
 }
 
 .task-completed {
