@@ -1,7 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
-
-const SUPABASE_URL = 'https://penyfgluluxlhsghntdj.supabase.co'
-const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_GtEyhgXLc3x6KQeBkAEZCg_v_GLrp4b'
+const SHARED_STATE_ENDPOINT =
+  'https://penyfgluluxlhsghntdj.supabase.co/functions/v1/strategy-shared-state'
 
 export type SharedStrategyPayload = {
   events: unknown[]
@@ -17,14 +15,6 @@ const emptyPayload: SharedStrategyPayload = {
   initialized: false,
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-    detectSessionInUrl: false,
-  },
-})
-
 function normalizePayload(value: unknown): SharedStrategyPayload {
   const payload = (value ?? {}) as Partial<SharedStrategyPayload>
 
@@ -36,58 +26,79 @@ function normalizePayload(value: unknown): SharedStrategyPayload {
   }
 }
 
+async function requestSharedState(
+  method: 'GET' | 'POST',
+  payload?: SharedStrategyPayload,
+) {
+  const response = await fetch(SHARED_STATE_ENDPOINT, {
+    method,
+    cache: 'no-store',
+    headers: payload ? { 'Content-Type': 'application/json' } : undefined,
+    body: payload ? JSON.stringify({ payload }) : undefined,
+  })
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => '')
+    throw new Error(
+      `Falha na sincronização (${response.status})${message ? `: ${message}` : ''}`,
+    )
+  }
+
+  const result = (await response.json()) as { payload?: unknown }
+  return normalizePayload(result.payload)
+}
+
 export async function loadSharedStrategyState() {
-  const { data, error } = await supabase
-    .from('strategy_shared_state')
-    .select('payload')
-    .eq('id', 'global')
-    .maybeSingle()
-
-  if (error) throw error
-  if (!data) return emptyPayload
-
-  return normalizePayload(data.payload)
+  return requestSharedState('GET')
 }
 
 export async function saveSharedStrategyState(payload: SharedStrategyPayload) {
-  const normalized = normalizePayload({
-    ...payload,
-    initialized: true,
-  })
-
-  const { error } = await supabase
-    .from('strategy_shared_state')
-    .upsert({
-      id: 'global',
-      payload: normalized,
-      updated_at: new Date().toISOString(),
-    })
-
-  if (error) throw error
-  return normalized
+  return requestSharedState(
+    'POST',
+    normalizePayload({
+      ...payload,
+      initialized: true,
+    }),
+  )
 }
 
 export function subscribeSharedStrategyState(
   onChange: (payload: SharedStrategyPayload) => void,
 ) {
-  const channel = supabase
-    .channel('strategy-shared-state')
-    .on(
-      'postgres_changes',
-      {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'strategy_shared_state',
-        filter: 'id=eq.global',
-      },
-      (change) => {
-        const next = (change.new as { payload?: unknown } | null)?.payload
-        onChange(normalizePayload(next))
-      },
-    )
-    .subscribe()
+  let stopped = false
+  let lastValue = ''
+
+  async function refresh() {
+    if (stopped) return
+
+    try {
+      const payload = await loadSharedStrategyState()
+      const serialized = JSON.stringify(payload)
+
+      if (serialized !== lastValue) {
+        lastValue = serialized
+        onChange(payload)
+      }
+    } catch (error) {
+      console.error('Falha ao atualizar dados compartilhados:', error)
+    }
+  }
+
+  const timer = window.setInterval(() => {
+    void refresh()
+  }, 5000)
+
+  const handleFocus = () => {
+    void refresh()
+  }
+
+  window.addEventListener('focus', handleFocus)
+  document.addEventListener('visibilitychange', handleFocus)
 
   return () => {
-    void supabase.removeChannel(channel)
+    stopped = true
+    window.clearInterval(timer)
+    window.removeEventListener('focus', handleFocus)
+    document.removeEventListener('visibilitychange', handleFocus)
   }
 }
