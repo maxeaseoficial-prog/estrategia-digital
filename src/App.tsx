@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import {
   CalendarDays,
   CheckSquare2,
@@ -17,6 +17,11 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
+import {
+  loadSharedStrategyState,
+  saveSharedStrategyState,
+  subscribeSharedStrategyState,
+} from './sharedStore'
 
 type Page = 'dashboard' | 'events' | 'campaigns'
 type CalendarMode = 'month' | 'week' | 'day'
@@ -182,6 +187,10 @@ function App() {
   const [editingCampaign, setEditingCampaign] = useState<CampaignItem | null>(null)
   const [editingTask, setEditingTask] = useState<TaskItem | null>(null)
   const [search, setSearch] = useState('')
+  const [sharedReady, setSharedReady] = useState(false)
+  const [sharedInitialized, setSharedInitialized] = useState(false)
+  const lastSyncedStateRef = useRef('')
+  const saveTimerRef = useRef<number | null>(null)
 
   const activeEvents = useMemo(
     () => events.filter((item) => item.active).sort((a, b) => a.date.localeCompare(b.date)),
@@ -191,6 +200,124 @@ function App() {
 
   const nearestEvent =
     activeEvents.find((item) => daysUntil(item.date) >= 0) ?? activeEvents[0] ?? null
+
+  useEffect(() => {
+    let cancelled = false
+
+    const localSnapshot = {
+      events,
+      campaigns,
+      tasks,
+      initialized: events.length > 0 || campaigns.length > 0 || tasks.length > 0,
+    }
+
+    const localSerialized = JSON.stringify({
+      events: localSnapshot.events,
+      campaigns: localSnapshot.campaigns,
+      tasks: localSnapshot.tasks,
+    })
+
+    async function bootstrapSharedState() {
+      try {
+        const remote = await loadSharedStrategyState()
+        if (cancelled) return
+
+        if (remote.initialized) {
+          const remoteSerialized = JSON.stringify({
+            events: remote.events,
+            campaigns: remote.campaigns,
+            tasks: remote.tasks,
+          })
+
+          lastSyncedStateRef.current = remoteSerialized
+          setEvents(remote.events as EventItem[])
+          setCampaigns(remote.campaigns as CampaignItem[])
+          setTasks(remote.tasks as TaskItem[])
+          setSharedInitialized(true)
+          setSharedReady(true)
+          return
+        }
+
+        if (localSnapshot.initialized) {
+          await saveSharedStrategyState(localSnapshot)
+          if (cancelled) return
+          lastSyncedStateRef.current = localSerialized
+          setSharedInitialized(true)
+        }
+
+        setSharedReady(true)
+      } catch (error) {
+        console.error('Falha ao carregar dados compartilhados:', error)
+        if (!cancelled) setSharedReady(true)
+      }
+    }
+
+    void bootstrapSharedState()
+
+    const unsubscribe = subscribeSharedStrategyState((remote) => {
+      if (cancelled || !remote.initialized) return
+
+      const remoteSerialized = JSON.stringify({
+        events: remote.events,
+        campaigns: remote.campaigns,
+        tasks: remote.tasks,
+      })
+
+      if (remoteSerialized === lastSyncedStateRef.current) return
+
+      lastSyncedStateRef.current = remoteSerialized
+      setEvents(remote.events as EventItem[])
+      setCampaigns(remote.campaigns as CampaignItem[])
+      setTasks(remote.tasks as TaskItem[])
+      setSharedInitialized(true)
+    })
+
+    return () => {
+      cancelled = true
+      unsubscribe()
+      if (saveTimerRef.current !== null) {
+        window.clearTimeout(saveTimerRef.current)
+      }
+    }
+    // Executa apenas uma vez para migrar o localStorage atual para a nuvem.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (!sharedReady) return
+
+    const hasData = events.length > 0 || campaigns.length > 0 || tasks.length > 0
+    if (!sharedInitialized && !hasData) return
+
+    const serialized = JSON.stringify({ events, campaigns, tasks })
+    if (serialized === lastSyncedStateRef.current) return
+
+    if (saveTimerRef.current !== null) {
+      window.clearTimeout(saveTimerRef.current)
+    }
+
+    saveTimerRef.current = window.setTimeout(() => {
+      void saveSharedStrategyState({
+        events,
+        campaigns,
+        tasks,
+        initialized: true,
+      })
+        .then(() => {
+          lastSyncedStateRef.current = serialized
+          setSharedInitialized(true)
+        })
+        .catch((error) => {
+          console.error('Falha ao salvar dados compartilhados:', error)
+        })
+    }, 300)
+
+    return () => {
+      if (saveTimerRef.current !== null) {
+        window.clearTimeout(saveTimerRef.current)
+      }
+    }
+  }, [events, campaigns, tasks, sharedReady, sharedInitialized])
 
   function openEvent(item?: EventItem) {
     setEditingEvent(item ?? null)
@@ -310,7 +437,7 @@ function App() {
         {!collapsed && (
           <div className="sidebar-footer">
             <span>MVP</span>
-            <p>Dados salvos neste navegador.</p>
+            <p>Dados compartilhados entre dispositivos.</p>
           </div>
         )}
       </aside>
