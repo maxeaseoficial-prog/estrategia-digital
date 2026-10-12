@@ -5,6 +5,7 @@ export type SharedStrategyPayload = {
   events: unknown[]
   campaigns: unknown[]
   tasks: unknown[]
+  products: unknown[]
   initialized: boolean
 }
 
@@ -12,6 +13,7 @@ const emptyPayload: SharedStrategyPayload = {
   events: [],
   campaigns: [],
   tasks: [],
+  products: [],
   initialized: false,
 }
 
@@ -22,6 +24,7 @@ function normalizePayload(value: unknown): SharedStrategyPayload {
     events: Array.isArray(payload.events) ? payload.events : [],
     campaigns: Array.isArray(payload.campaigns) ? payload.campaigns : [],
     tasks: Array.isArray(payload.tasks) ? payload.tasks : [],
+    products: Array.isArray(payload.products) ? payload.products : [],
     initialized: payload.initialized === true,
   }
 }
