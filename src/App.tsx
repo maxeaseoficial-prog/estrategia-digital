@@ -268,7 +268,6 @@ function App() {
           setEvents(remoteState.events)
           setCampaigns(remoteState.campaigns)
           setTasks(remoteState.tasks)
-      setProducts(remoteState.products)
           setProducts(remoteState.products)
           setSharedInitialized(true)
           setSharedReady(true)
