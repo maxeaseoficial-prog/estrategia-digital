@@ -7,6 +7,7 @@ import {
   CirclePlus,
   LayoutDashboard,
   Megaphone,
+  Package2,
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
@@ -23,8 +24,26 @@ import {
   subscribeSharedStrategyState,
 } from './sharedStore'
 
-type Page = 'dashboard' | 'events' | 'campaigns'
+type Page = 'dashboard' | 'events' | 'campaigns' | 'products'
 type CalendarMode = 'month' | 'week' | 'day'
+
+type ProductType = 'digital' | 'live' | 'event'
+
+type ProductLot = {
+  id: string
+  name: string
+  price: number
+}
+
+type ProductItem = {
+  id: string
+  name: string
+  type: ProductType
+  image: string
+  value: number
+  hasLots: boolean
+  lots: ProductLot[]
+}
 
 type EventItem = {
   id: string
@@ -175,19 +194,31 @@ const emptyTask: Omit<TaskItem, 'id'> = {
   completed: false,
 }
 
+const emptyProduct: Omit<ProductItem, 'id'> = {
+  name: '',
+  type: 'event',
+  image: '',
+  value: 0,
+  hasLots: false,
+  lots: [],
+}
+
 function App() {
   const [page, setPage] = useState<Page>('dashboard')
   const [collapsed, setCollapsed] = useState(false)
   const [events, setEvents] = useStoredState<EventItem[]>('strategy-events', [])
   const [campaigns, setCampaigns] = useStoredState<CampaignItem[]>('strategy-campaigns', [])
   const [tasks, setTasks] = useStoredState<TaskItem[]>('strategy-tasks', [])
+  const [products, setProducts] = useStoredState<ProductItem[]>('strategy-products', [])
   const [eventModal, setEventModal] = useState(false)
   const [campaignModal, setCampaignModal] = useState(false)
   const [taskModal, setTaskModal] = useState(false)
+  const [productModal, setProductModal] = useState(false)
   const [taskDate, setTaskDate] = useState(toISODate(new Date()))
   const [editingEvent, setEditingEvent] = useState<EventItem | null>(null)
   const [editingCampaign, setEditingCampaign] = useState<CampaignItem | null>(null)
   const [editingTask, setEditingTask] = useState<TaskItem | null>(null)
+  const [editingProduct, setEditingProduct] = useState<ProductItem | null>(null)
   const [search, setSearch] = useState('')
   const [sharedReady, setSharedReady] = useState(false)
   const [sharedInitialized, setSharedInitialized] = useState(false)
@@ -230,12 +261,15 @@ function App() {
             events: remote.events as EventItem[],
             campaigns: remote.campaigns as CampaignItem[],
             tasks: remote.tasks as TaskItem[],
+            products: remote.products as ProductItem[],
           }
 
           lastSyncedStateRef.current = JSON.stringify(remoteState)
           setEvents(remoteState.events)
           setCampaigns(remoteState.campaigns)
           setTasks(remoteState.tasks)
+      setProducts(remoteState.products)
+          setProducts(remoteState.products)
           setSharedInitialized(true)
           setSharedReady(true)
           setSharedStatus('synced')
@@ -248,12 +282,14 @@ function App() {
           events: readStoredArray<EventItem>('strategy-events'),
           campaigns: readStoredArray<CampaignItem>('strategy-campaigns'),
           tasks: readStoredArray<TaskItem>('strategy-tasks'),
+          products: readStoredArray<ProductItem>('strategy-products'),
         }
 
         const hasLegacyData =
           legacyState.events.length > 0 ||
           legacyState.campaigns.length > 0 ||
-          legacyState.tasks.length > 0
+          legacyState.tasks.length > 0 ||
+          legacyState.products.length > 0
 
         if (hasLegacyData) {
           await saveSharedStrategyState({
@@ -270,12 +306,14 @@ function App() {
             events: verified.events as EventItem[],
             campaigns: verified.campaigns as CampaignItem[],
             tasks: verified.tasks as TaskItem[],
+            products: verified.products as ProductItem[],
           }
 
           lastSyncedStateRef.current = JSON.stringify(verifiedState)
           setEvents(verifiedState.events)
           setCampaigns(verifiedState.campaigns)
           setTasks(verifiedState.tasks)
+          setProducts(verifiedState.products)
           setSharedInitialized(verified.initialized)
           setSharedReady(true)
           setSharedStatus(verified.initialized ? 'synced' : 'error')
@@ -315,6 +353,7 @@ function App() {
         events: remote.events as EventItem[],
         campaigns: remote.campaigns as CampaignItem[],
         tasks: remote.tasks as TaskItem[],
+        products: remote.products as ProductItem[],
       }
       const remoteSerialized = JSON.stringify(remoteState)
 
@@ -324,20 +363,25 @@ function App() {
       setEvents(remoteState.events)
       setCampaigns(remoteState.campaigns)
       setTasks(remoteState.tasks)
+      setProducts(remoteState.products)
       setSharedInitialized(true)
       setSharedStatus('synced')
     })
 
     return unsubscribe
-  }, [sharedReady, setEvents, setCampaigns, setTasks])
+  }, [sharedReady, setEvents, setCampaigns, setTasks, setProducts])
 
   useEffect(() => {
     if (!sharedReady) return
 
-    const hasData = events.length > 0 || campaigns.length > 0 || tasks.length > 0
+    const hasData =
+      events.length > 0 ||
+      campaigns.length > 0 ||
+      tasks.length > 0 ||
+      products.length > 0
     if (!sharedInitialized && !hasData) return
 
-    const serialized = JSON.stringify({ events, campaigns, tasks })
+    const serialized = JSON.stringify({ events, campaigns, tasks, products })
     if (serialized === lastSyncedStateRef.current) return
 
     if (saveTimerRef.current !== null) {
@@ -351,6 +395,7 @@ function App() {
         events,
         campaigns,
         tasks,
+        products,
         initialized: true,
       })
         .then(async () => {
@@ -359,6 +404,7 @@ function App() {
             events: verified.events,
             campaigns: verified.campaigns,
             tasks: verified.tasks,
+            products: verified.products,
           })
 
           lastSyncedStateRef.current = verifiedSerialized
@@ -376,7 +422,7 @@ function App() {
         window.clearTimeout(saveTimerRef.current)
       }
     }
-  }, [events, campaigns, tasks, sharedReady, sharedInitialized])
+  }, [events, campaigns, tasks, products, sharedReady, sharedInitialized])
 
   function openEvent(item?: EventItem) {
     setEditingEvent(item ?? null)
@@ -392,6 +438,11 @@ function App() {
     setTaskDate(item?.date ?? date)
     setEditingTask(item ?? null)
     setTaskModal(true)
+  }
+
+  function openProduct(item?: ProductItem) {
+    setEditingProduct(item ?? null)
+    setProductModal(true)
   }
 
   function saveEvent(data: Omit<EventItem, 'id'>) {
@@ -436,6 +487,23 @@ function App() {
     setTasks((current) => current.filter((item) => item.id !== id))
     setTaskModal(false)
     setEditingTask(null)
+  }
+
+  function saveProduct(data: Omit<ProductItem, 'id'>) {
+    if (editingProduct) {
+      setProducts((current) =>
+        current.map((item) => (item.id === editingProduct.id ? { ...data, id: item.id } : item)),
+      )
+    } else {
+      setProducts((current) => [...current, { ...data, id: uid() }])
+    }
+    setProductModal(false)
+    setEditingProduct(null)
+  }
+
+  function removeProduct(id: string) {
+    if (!window.confirm('Excluir este produto?')) return
+    setProducts((current) => current.filter((item) => item.id !== id))
   }
 
   function removeEvent(id: string) {
@@ -491,6 +559,13 @@ function App() {
             <Megaphone size={19} />
             {!collapsed && <span>Campanhas</span>}
           </button>
+          <button
+            className={page === 'products' ? 'active' : ''}
+            onClick={() => setPage('products')}
+          >
+            <Package2 size={19} />
+            {!collapsed && <span>Produtos</span>}
+          </button>
         </nav>
 
         {!collapsed && (
@@ -513,6 +588,7 @@ function App() {
               {page === 'dashboard' && 'Calendário estratégico'}
               {page === 'events' && 'Eventos'}
               {page === 'campaigns' && 'Campanhas'}
+              {page === 'products' && 'Produtos'}
             </h1>
           </div>
           <div className="topbar-actions">
@@ -524,6 +600,11 @@ function App() {
             {page === 'campaigns' && (
               <button className="primary-button" onClick={() => openCampaign()}>
                 <CirclePlus size={18} /> Nova campanha
+              </button>
+            )}
+            {page === 'products' && (
+              <button className="primary-button" onClick={() => openProduct()}>
+                <CirclePlus size={18} /> Novo produto
               </button>
             )}
           </div>
@@ -578,6 +659,16 @@ function App() {
             }
           />
         )}
+
+        {page === 'products' && (
+          <ProductsPage
+            products={products}
+            search={search}
+            setSearch={setSearch}
+            onEdit={openProduct}
+            onDelete={removeProduct}
+          />
+        )}
       </main>
 
       {eventModal && (
@@ -600,6 +691,17 @@ function App() {
             setEditingCampaign(null)
           }}
           onSave={saveCampaign}
+        />
+      )}
+
+      {productModal && (
+        <ProductModal
+          value={editingProduct}
+          onClose={() => {
+            setProductModal(false)
+            setEditingProduct(null)
+          }}
+          onSave={saveProduct}
         />
       )}
 
@@ -1526,6 +1628,107 @@ function CampaignsPage({
   )
 }
 
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(Number.isFinite(value) ? value : 0)
+}
+
+function productTypeLabel(type: ProductType) {
+  if (type === 'digital') return 'Produto digital'
+  if (type === 'live') return 'Live'
+  return 'Evento'
+}
+
+function ProductsPage({
+  products,
+  search,
+  setSearch,
+  onEdit,
+  onDelete,
+}: {
+  products: ProductItem[]
+  search: string
+  setSearch: (value: string) => void
+  onEdit: (item: ProductItem) => void
+  onDelete: (id: string) => void
+}) {
+  const filtered = products.filter((item) =>
+    `${item.name} ${productTypeLabel(item.type)}`.toLowerCase().includes(search.toLowerCase()),
+  )
+
+  return (
+    <section className="content-card products-section">
+      <div className="list-toolbar">
+        <div className="search-box">
+          <Search size={18} />
+          <input
+            placeholder="Buscar produtos..."
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </div>
+        <span>{products.length} produto(s)</span>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="empty-state">
+          <Package2 size={30} />
+          <h3>Nenhum produto cadastrado</h3>
+          <p>Cadastre eventos, lives e produtos digitais para manter sua oferta organizada.</p>
+        </div>
+      ) : (
+        <div className="products-grid">
+          {filtered.map((product) => (
+            <article className="product-card" key={product.id}>
+              <div className="product-image">
+                {product.image ? (
+                  <img src={product.image} alt={product.name} />
+                ) : (
+                  <Package2 size={30} />
+                )}
+              </div>
+
+              <div className="product-card-body">
+                <span className="product-type-pill">{productTypeLabel(product.type)}</span>
+                <h3>{product.name}</h3>
+
+                {!product.hasLots ? (
+                  <strong className="product-price">{formatCurrency(product.value)}</strong>
+                ) : (
+                  <div className="product-lots-preview">
+                    {product.lots.length === 0 ? (
+                      <small>Nenhum lote cadastrado.</small>
+                    ) : (
+                      product.lots.map((lot) => (
+                        <div key={lot.id}>
+                          <span>{lot.name}</span>
+                          <b>{formatCurrency(lot.price)}</b>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="product-card-actions">
+                <button className="icon-button" title="Editar produto" onClick={() => onEdit(product)}>
+                  <Pencil size={17} />
+                </button>
+                <button className="icon-button danger" title="Excluir produto" onClick={() => onDelete(product.id)}>
+                  <Trash2 size={17} />
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
 function Modal({
   title,
   subtitle,
@@ -1893,6 +2096,278 @@ function CampaignModal({
         <div className="modal-actions full">
           <button type="button" className="secondary-button" onClick={onClose}>Cancelar</button>
           <button type="submit" className="primary-button">Salvar campanha</button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+
+type ProductFormState = Omit<ProductItem, 'id' | 'value' | 'lots'> & {
+  value: number | ''
+  lots: Array<Omit<ProductLot, 'price'> & { price: number | '' }>
+}
+
+async function prepareProductImage(file: File) {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(file)
+  })
+
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = reject
+    img.src = dataUrl
+  })
+
+  const maxSize = 900
+  const scale = Math.min(1, maxSize / Math.max(image.width, image.height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(image.width * scale))
+  canvas.height = Math.max(1, Math.round(image.height * scale))
+
+  const context = canvas.getContext('2d')
+  if (!context) return dataUrl
+
+  context.drawImage(image, 0, 0, canvas.width, canvas.height)
+  return canvas.toDataURL('image/jpeg', 0.8)
+}
+
+function ProductModal({
+  value,
+  onClose,
+  onSave,
+}: {
+  value: ProductItem | null
+  onClose: () => void
+  onSave: (data: Omit<ProductItem, 'id'>) => void
+}) {
+  const [form, setForm] = useState<ProductFormState>({
+    ...emptyProduct,
+    value: '',
+    lots: [],
+  })
+  const [imageLoading, setImageLoading] = useState(false)
+
+  useEffect(() => {
+    if (value) {
+      const { id: _id, ...rest } = value
+      setForm({
+        ...rest,
+        value: rest.value,
+        lots: (rest.lots || []).map((lot) => ({ ...lot, price: lot.price })),
+      })
+    } else {
+      setForm({
+        ...emptyProduct,
+        value: '',
+        lots: [],
+      })
+    }
+  }, [value])
+
+  function addLot() {
+    setForm((current) => ({
+      ...current,
+      lots: [
+        ...current.lots,
+        {
+          id: uid(),
+          name: `Lote ${current.lots.length + 1}`,
+          price: '',
+        },
+      ],
+    }))
+  }
+
+  function updateLot(id: string, patch: Partial<{ name: string; price: number | '' }>) {
+    setForm((current) => ({
+      ...current,
+      lots: current.lots.map((lot) => (lot.id === id ? { ...lot, ...patch } : lot)),
+    }))
+  }
+
+  function removeLot(id: string) {
+    setForm((current) => ({
+      ...current,
+      lots: current.lots.filter((lot) => lot.id !== id),
+    }))
+  }
+
+  async function handleImage(file?: File) {
+    if (!file) return
+    if (!file.type.startsWith('image/')) return
+
+    setImageLoading(true)
+    try {
+      const image = await prepareProductImage(file)
+      setForm((current) => ({ ...current, image }))
+    } finally {
+      setImageLoading(false)
+    }
+  }
+
+  function submit(event: FormEvent) {
+    event.preventDefault()
+    if (!form.name.trim()) return
+
+    onSave({
+      ...form,
+      value: Math.max(0, Number(form.value) || 0),
+      lots: form.lots.map((lot, index) => ({
+        id: lot.id || uid(),
+        name: lot.name.trim() || `Lote ${index + 1}`,
+        price: Math.max(0, Number(lot.price) || 0),
+      })),
+    })
+  }
+
+  return (
+    <Modal
+      title={value ? 'Editar produto' : 'Novo produto'}
+      subtitle="Cadastre a oferta, o tipo, a imagem e os valores."
+      onClose={onClose}
+    >
+      <form className="form-grid" onSubmit={submit}>
+        <label className="full">
+          Foto
+          <div className="product-upload-row">
+            <div className="product-upload-preview">
+              {form.image ? <img src={form.image} alt="Prévia do produto" /> : <Package2 size={25} />}
+            </div>
+            <div className="product-upload-controls">
+              <label className="secondary-button product-upload-button">
+                {imageLoading ? 'Processando...' : form.image ? 'Trocar foto' : 'Adicionar foto'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={imageLoading}
+                  onChange={(event) => void handleImage(event.target.files?.[0])}
+                />
+              </label>
+              {form.image && (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setForm({ ...form, image: '' })}
+                >
+                  Remover
+                </button>
+              )}
+            </div>
+          </div>
+        </label>
+
+        <label className="full">
+          Nome do produto
+          <input
+            required
+            value={form.name}
+            onChange={(event) => setForm({ ...form, name: event.target.value })}
+            placeholder="Ex.: RPM Summit"
+          />
+        </label>
+
+        <label>
+          Tipo
+          <select
+            value={form.type}
+            onChange={(event) => setForm({ ...form, type: event.target.value as ProductType })}
+          >
+            <option value="event">Evento</option>
+            <option value="live">Live</option>
+            <option value="digital">Produto digital</option>
+          </select>
+        </label>
+
+        <label>
+          Valor
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={form.value}
+            onChange={(event) =>
+              setForm({
+                ...form,
+                value: event.target.value === '' ? '' : Number(event.target.value),
+              })
+            }
+            placeholder="0,00"
+          />
+        </label>
+
+        <label className="switch-row full product-lot-switch">
+          <input
+            type="checkbox"
+            checked={form.hasLots}
+            onChange={(event) => {
+              const enabled = event.target.checked
+              setForm({
+                ...form,
+                hasLots: enabled,
+                lots:
+                  enabled && form.lots.length === 0
+                    ? [{ id: uid(), name: 'Lote 1', price: '' }]
+                    : form.lots,
+              })
+            }}
+          />
+          <span>Este produto possui lotes</span>
+        </label>
+
+        {form.hasLots && (
+          <div className="full product-lots-editor">
+            <div className="product-lots-header">
+              <div>
+                <strong>Lotes e preços</strong>
+                <small>Defina os valores de cada lote deste produto.</small>
+              </div>
+              <button type="button" className="secondary-button" onClick={addLot}>
+                <Plus size={15} /> Adicionar lote
+              </button>
+            </div>
+
+            <div className="product-lot-rows">
+              {form.lots.map((lot, index) => (
+                <div className="product-lot-row" key={lot.id}>
+                  <input
+                    value={lot.name}
+                    onChange={(event) => updateLot(lot.id, { name: event.target.value })}
+                    placeholder={`Lote ${index + 1}`}
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={lot.price}
+                    onChange={(event) =>
+                      updateLot(lot.id, {
+                        price: event.target.value === '' ? '' : Number(event.target.value),
+                      })
+                    }
+                    placeholder="Preço"
+                  />
+                  <button
+                    type="button"
+                    className="icon-button danger"
+                    title="Remover lote"
+                    onClick={() => removeLot(lot.id)}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="modal-actions full">
+          <button type="button" className="secondary-button" onClick={onClose}>Cancelar</button>
+          <button type="submit" className="primary-button" disabled={imageLoading}>Salvar produto</button>
         </div>
       </form>
     </Modal>
