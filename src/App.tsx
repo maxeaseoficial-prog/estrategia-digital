@@ -930,7 +930,7 @@ function itemsForDate(
       name: item.title,
       type: 'task' as const,
       color: item.color || '#6B7280',
-      textColor: '#343840',
+      textColor: readableTextColor(item.color || '#6B7280'),
       completed: item.completed,
       task: item,
     }))
@@ -1117,7 +1117,8 @@ function MonthCalendar({
                                 : item.type === 'task'
                                   ? {
                                       borderLeftColor: item.color,
-                                      background: `${item.color}18`,
+                                      background: item.color,
+                                      color: item.textColor,
                                     }
                                   : { borderLeftColor: item.color }
                             }
@@ -1225,14 +1226,21 @@ function WeekCalendar({
                       : item.type === 'task'
                         ? {
                             borderLeftColor: item.color,
-                            background: `${item.color}18`,
+                            background: item.color,
+                            color: item.textColor,
                           }
                         : { borderLeftColor: item.color }
                   }
                   onClick={item.type === 'task' ? () => onEditTask(item.task) : undefined}
                   role={item.type === 'task' ? 'button' : undefined}
                 >
-                  <span style={item.type === 'campaign' ? { color: item.textColor, opacity: 0.78 } : undefined}>
+                  <span
+                    style={
+                      item.type === 'campaign' || item.type === 'task'
+                        ? { color: item.textColor, opacity: 0.82 }
+                        : undefined
+                    }
+                  >
                     {item.type === 'event' ? 'Evento' : item.type === 'campaign' ? 'Campanha' : 'Tarefa'}
                   </span>
                   <span className={item.type === 'task' && item.completed ? 'task-completed' : ''}>
@@ -1298,14 +1306,21 @@ function DayCalendar({
                 : item.type === 'task'
                   ? {
                       borderLeft: `4px solid ${item.color}`,
-                      background: `${item.color}18`,
+                      background: item.color,
+                      color: item.textColor,
                     }
                   : { borderLeft: `4px solid ${item.color}` }
             }
             onClick={item.type === 'task' ? () => onEditTask(item.task) : undefined}
             role={item.type === 'task' ? 'button' : undefined}
           >
-            <span style={item.type === 'campaign' ? { color: item.textColor, opacity: 0.78 } : undefined}>
+            <span
+              style={
+                item.type === 'campaign' || item.type === 'task'
+                  ? { color: item.textColor, opacity: 0.82 }
+                  : undefined
+              }
+            >
               {item.type === 'event' ? 'Evento' : item.type === 'campaign' ? 'Campanha' : 'Tarefa'}
             </span>
             <strong className={item.type === 'task' && item.completed ? 'task-completed' : ''}>
