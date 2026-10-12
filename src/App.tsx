@@ -189,6 +189,7 @@ function App() {
   const [search, setSearch] = useState('')
   const [sharedReady, setSharedReady] = useState(false)
   const [sharedInitialized, setSharedInitialized] = useState(false)
+  const [sharedStatus, setSharedStatus] = useState<'loading' | 'synced' | 'error'>('loading')
   const lastSyncedStateRef = useRef('')
   const saveTimerRef = useRef<number | null>(null)
 
@@ -204,84 +205,129 @@ function App() {
   useEffect(() => {
     let cancelled = false
 
-    const localSnapshot = {
-      events,
-      campaigns,
-      tasks,
-      initialized: events.length > 0 || campaigns.length > 0 || tasks.length > 0,
+    function readStoredArray<T>(key: string): T[] {
+      try {
+        const raw = localStorage.getItem(key)
+        if (!raw) return []
+        const parsed = JSON.parse(raw)
+        return Array.isArray(parsed) ? parsed : []
+      } catch {
+        return []
+      }
     }
 
-    const localSerialized = JSON.stringify({
-      events: localSnapshot.events,
-      campaigns: localSnapshot.campaigns,
-      tasks: localSnapshot.tasks,
-    })
-
     async function bootstrapSharedState() {
+      setSharedStatus('loading')
+
       try {
         const remote = await loadSharedStrategyState()
         if (cancelled) return
 
         if (remote.initialized) {
-          const remoteSerialized = JSON.stringify({
-            events: remote.events,
-            campaigns: remote.campaigns,
-            tasks: remote.tasks,
-          })
+          const remoteState = {
+            events: remote.events as EventItem[],
+            campaigns: remote.campaigns as CampaignItem[],
+            tasks: remote.tasks as TaskItem[],
+          }
 
-          lastSyncedStateRef.current = remoteSerialized
-          setEvents(remote.events as EventItem[])
-          setCampaigns(remote.campaigns as CampaignItem[])
-          setTasks(remote.tasks as TaskItem[])
+          lastSyncedStateRef.current = JSON.stringify(remoteState)
+          setEvents(remoteState.events)
+          setCampaigns(remoteState.campaigns)
+          setTasks(remoteState.tasks)
           setSharedInitialized(true)
           setSharedReady(true)
+          setSharedStatus('synced')
           return
         }
 
-        if (localSnapshot.initialized) {
-          await saveSharedStrategyState(localSnapshot)
+        // Migração do conteúdo antigo salvo somente neste navegador.
+        // Lemos diretamente do localStorage para não depender do timing do React.
+        const legacyState = {
+          events: readStoredArray<EventItem>('strategy-events'),
+          campaigns: readStoredArray<CampaignItem>('strategy-campaigns'),
+          tasks: readStoredArray<TaskItem>('strategy-tasks'),
+        }
+
+        const hasLegacyData =
+          legacyState.events.length > 0 ||
+          legacyState.campaigns.length > 0 ||
+          legacyState.tasks.length > 0
+
+        if (hasLegacyData) {
+          await saveSharedStrategyState({
+            ...legacyState,
+            initialized: true,
+          })
+
           if (cancelled) return
-          lastSyncedStateRef.current = localSerialized
-          setSharedInitialized(true)
+
+          const verified = await loadSharedStrategyState()
+          if (cancelled) return
+
+          const verifiedState = {
+            events: verified.events as EventItem[],
+            campaigns: verified.campaigns as CampaignItem[],
+            tasks: verified.tasks as TaskItem[],
+          }
+
+          lastSyncedStateRef.current = JSON.stringify(verifiedState)
+          setEvents(verifiedState.events)
+          setCampaigns(verifiedState.campaigns)
+          setTasks(verifiedState.tasks)
+          setSharedInitialized(verified.initialized)
+          setSharedReady(true)
+          setSharedStatus(verified.initialized ? 'synced' : 'error')
+          return
         }
 
         setSharedReady(true)
+        setSharedStatus('synced')
       } catch (error) {
-        console.error('Falha ao carregar dados compartilhados:', error)
-        if (!cancelled) setSharedReady(true)
+        console.error('Falha ao carregar/migrar dados compartilhados:', error)
+        if (!cancelled) {
+          setSharedReady(true)
+          setSharedStatus('error')
+        }
       }
     }
 
     void bootstrapSharedState()
 
-    const unsubscribe = subscribeSharedStrategyState((remote) => {
-      if (cancelled || !remote.initialized) return
-
-      const remoteSerialized = JSON.stringify({
-        events: remote.events,
-        campaigns: remote.campaigns,
-        tasks: remote.tasks,
-      })
-
-      if (remoteSerialized === lastSyncedStateRef.current) return
-
-      lastSyncedStateRef.current = remoteSerialized
-      setEvents(remote.events as EventItem[])
-      setCampaigns(remote.campaigns as CampaignItem[])
-      setTasks(remote.tasks as TaskItem[])
-      setSharedInitialized(true)
-    })
-
     return () => {
       cancelled = true
-      unsubscribe()
       if (saveTimerRef.current !== null) {
         window.clearTimeout(saveTimerRef.current)
       }
     }
-    // Executa apenas uma vez para migrar o localStorage atual para a nuvem.
+    // Executa uma única vez para carregar a nuvem ou migrar o localStorage legado.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (!sharedReady) return
+
+    const unsubscribe = subscribeSharedStrategyState((remote) => {
+      if (!remote.initialized) return
+
+      const remoteState = {
+        events: remote.events as EventItem[],
+        campaigns: remote.campaigns as CampaignItem[],
+        tasks: remote.tasks as TaskItem[],
+      }
+      const remoteSerialized = JSON.stringify(remoteState)
+
+      if (remoteSerialized === lastSyncedStateRef.current) return
+
+      lastSyncedStateRef.current = remoteSerialized
+      setEvents(remoteState.events)
+      setCampaigns(remoteState.campaigns)
+      setTasks(remoteState.tasks)
+      setSharedInitialized(true)
+      setSharedStatus('synced')
+    })
+
+    return unsubscribe
+  }, [sharedReady, setEvents, setCampaigns, setTasks])
 
   useEffect(() => {
     if (!sharedReady) return
@@ -296,6 +342,8 @@ function App() {
       window.clearTimeout(saveTimerRef.current)
     }
 
+    setSharedStatus('loading')
+
     saveTimerRef.current = window.setTimeout(() => {
       void saveSharedStrategyState({
         events,
@@ -303,14 +351,23 @@ function App() {
         tasks,
         initialized: true,
       })
-        .then(() => {
-          lastSyncedStateRef.current = serialized
-          setSharedInitialized(true)
+        .then(async () => {
+          const verified = await loadSharedStrategyState()
+          const verifiedSerialized = JSON.stringify({
+            events: verified.events,
+            campaigns: verified.campaigns,
+            tasks: verified.tasks,
+          })
+
+          lastSyncedStateRef.current = verifiedSerialized
+          setSharedInitialized(verified.initialized)
+          setSharedStatus(verified.initialized ? 'synced' : 'error')
         })
         .catch((error) => {
           console.error('Falha ao salvar dados compartilhados:', error)
+          setSharedStatus('error')
         })
-    }, 300)
+    }, 250)
 
     return () => {
       if (saveTimerRef.current !== null) {
@@ -437,7 +494,11 @@ function App() {
         {!collapsed && (
           <div className="sidebar-footer">
             <span>MVP</span>
-            <p>Dados compartilhados entre dispositivos.</p>
+            <p>
+              {sharedStatus === 'loading' && 'Sincronizando dados...'}
+              {sharedStatus === 'synced' && 'Nuvem sincronizada.'}
+              {sharedStatus === 'error' && 'Falha na sincronização.'}
+            </p>
           </div>
         )}
       </aside>
