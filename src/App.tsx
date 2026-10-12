@@ -57,6 +57,7 @@ type TaskItem = {
   title: string
   date: string
   description: string
+  color: string
   completed: boolean
 }
 
@@ -170,6 +171,7 @@ const emptyTask: Omit<TaskItem, 'id'> = {
   title: '',
   date: toISODate(new Date()),
   description: '',
+  color: '#6B7280',
   completed: false,
 }
 
@@ -927,7 +929,7 @@ function itemsForDate(
       id: item.id,
       name: item.title,
       type: 'task' as const,
-      color: '#6B7280',
+      color: item.color || '#6B7280',
       textColor: '#343840',
       completed: item.completed,
       task: item,
@@ -1113,7 +1115,10 @@ function MonthCalendar({
                                     color: item.textColor,
                                   }
                                 : item.type === 'task'
-                                  ? { borderLeftColor: item.color }
+                                  ? {
+                                      borderLeftColor: item.color,
+                                      background: `${item.color}18`,
+                                    }
                                   : { borderLeftColor: item.color }
                             }
                             onClick={
@@ -1217,7 +1222,12 @@ function WeekCalendar({
                           background: item.color,
                           color: item.textColor,
                         }
-                      : { borderLeftColor: item.color }
+                      : item.type === 'task'
+                        ? {
+                            borderLeftColor: item.color,
+                            background: `${item.color}18`,
+                          }
+                        : { borderLeftColor: item.color }
                   }
                   onClick={item.type === 'task' ? () => onEditTask(item.task) : undefined}
                   role={item.type === 'task' ? 'button' : undefined}
@@ -1285,7 +1295,12 @@ function DayCalendar({
                     background: item.color,
                     color: item.textColor,
                   }
-                : { borderLeft: `4px solid ${item.color}` }
+                : item.type === 'task'
+                  ? {
+                      borderLeft: `4px solid ${item.color}`,
+                      background: `${item.color}18`,
+                    }
+                  : { borderLeft: `4px solid ${item.color}` }
             }
             onClick={item.type === 'task' ? () => onEditTask(item.task) : undefined}
             role={item.type === 'task' ? 'button' : undefined}
@@ -1890,7 +1905,10 @@ function TaskModal({
   useEffect(() => {
     if (value) {
       const { id: _id, ...rest } = value
-      setForm(rest)
+      setForm({
+        ...rest,
+        color: rest.color || '#6B7280',
+      })
     } else {
       setForm({
         ...emptyTask,
@@ -1943,6 +1961,33 @@ function TaskModal({
             />
             <span>Concluída</span>
           </label>
+        </label>
+
+        <label className="full">
+          Cor da tarefa
+          <div className="color-picker-row">
+            <input
+              className="color-input"
+              type="color"
+              value={form.color || '#6B7280'}
+              onChange={(event) => setForm({ ...form, color: event.target.value })}
+              aria-label="Escolher cor da tarefa"
+            />
+            <div className="color-presets">
+              {['#6B7280', '#3B82F6', '#D97945', '#9674C3', '#2E8B57', '#D94B4B', '#D4A24C', '#19A7AE'].map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  className={`color-preset ${form.color === color ? 'selected' : ''}`}
+                  style={{ background: color }}
+                  onClick={() => setForm({ ...form, color })}
+                  title={color}
+                  aria-label={`Usar cor ${color}`}
+                />
+              ))}
+            </div>
+            <span className="color-value">{(form.color || '#6B7280').toUpperCase()}</span>
+          </div>
         </label>
 
         <label className="full">
