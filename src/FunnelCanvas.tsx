@@ -2,15 +2,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react'
 import { ReactFlow, Background, Controls, MiniMap, Handle, Position, ConnectionMode, BaseEdge, getStraightPath, getSmoothStepPath, type Connection, type Edge, type Node, type NodeProps, type OnNodesChange, applyNodeChanges } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { GitBranch, MessageSquareText, UserRound } from 'lucide-react'
+import { GitBranch, MessageSquareText, UserRound, Video, Megaphone, FileText, ClipboardList, CreditCard, BadgeCheck, RefreshCw, Search, Users, UserX, CircleHelp, ChartNoAxesCombined, MessageCircle, Bell, ShoppingCart, MousePointerClick, Mail, CalendarDays, LayoutTemplate } from 'lucide-react'
 
-export type CanvasStep = { id:string; title:string; detail:string; kind:string; color:string; messages:{id:string}[]; owner?:string; status?:string; position?:{x:number;y:number} }
+export type CanvasStep = { id:string; title:string; detail:string; kind:string; color:string; messages:{id:string}[]; owner?:string; status?:string; livePlatform?:string; position?:{x:number;y:number} }
 export type CanvasLink = { id:string; source:string; target:string; label?:string; sourceHandle?:string|null; targetHandle?:string|null }
+function StageIcon({kind,platform,color}:{kind:string;platform?:string;color:string}){
+ const k=(kind||'').toLowerCase()
+ const p=(platform||'').toLowerCase()
+ if(k.includes('live')){
+  if(p.includes('zoom'))return <span className="fc-stage-brand fc-zoom" title="Zoom"><Video size={18} strokeWidth={2.5}/></span>
+  if(p.includes('meet'))return <span className="fc-stage-brand fc-meet" title="Google Meet"><svg viewBox="0 0 32 32" width="24" height="24"><path fill="#4285F4" d="M3 9h13v14H3z"/><path fill="#00AC47" d="M16 9h6v14h-6z"/><path fill="#FBBC04" d="M16 9l6-5 5 5-5 5z"/><path fill="#34A853" d="M22 13l7-5v16l-7-5z"/><path fill="#EA4335" d="M3 9l5-5h14l-6 5z"/></svg></span>
+  if(p.includes('instagram'))return <span className="fc-stage-brand fc-instagram" title="Instagram"><svg viewBox="0 0 32 32" width="23" height="23" fill="none"><rect x="6" y="6" width="20" height="20" rx="6" stroke="white" strokeWidth="2.8"/><circle cx="16" cy="16" r="5" stroke="white" strokeWidth="2.8"/><circle cx="22.5" cy="9.5" r="1.7" fill="white"/></svg></span>
+  return <span className="fc-stage-brand" style={{background:color}} title="Live"><Video size={18}/></span>
+ }
+ const entry:[string,any][]=[['meta ads',Megaphone],['anúncio',Megaphone],['conteúdo',FileText],['pitch',MousePointerClick],['cta',MousePointerClick],['landing',LayoutTemplate],['formulário',ClipboardList],['diagnóstico',ClipboardList],['checkout',ShoppingCart],['página',FileText],['whatsapp',MessageCircle],['aquecimento',Users],['nutrição',Users],['lembrete',Bell],['ausente',UserX],['remarketing',RefreshCw],['confirmação',BadgeCheck],['pós-venda',BadgeCheck],['pesquisa',ChartNoAxesCombined],['feedback',ChartNoAxesCombined],['decisão',CircleHelp],['oferta',CreditCard],['e-mail',Mail],['evento',CalendarDays],['recuperação',RefreshCw]]
+ const Icon=entry.find(([text])=>k.includes(text))?.[1]||CircleHelp
+ return <span className="fc-stage-brand" style={{background:color}}><Icon size={18} strokeWidth={2.3}/></span>
+}
 function StageNode({data,selected}:NodeProps) {
- const s=data as { title:string; detail:string; kind:string; color:string; owner?:string; status?:string; count:number; index:number }
+ const s=data as { title:string; detail:string; kind:string; color:string; owner?:string; status?:string; count:number; index:number; livePlatform?:string }
  return <div className={'fc-node '+(selected?'fc-selected':'')} style={{borderTopColor:s.color}}>
   <FlowHandle id="input" type="source" position={Position.Left} className="fc-handle" isConnectable={true}/>
-  <div className="fc-node-meta"><span className="fc-index" style={{background:s.color}}>{s.index}</span><span>{s.kind}</span></div>
+  <div className="fc-node-meta"><StageIcon kind={s.kind} platform={s.livePlatform} color={s.color}/><span>{s.kind}</span></div>
   <strong>{s.title}</strong><p>{s.detail}</p>
   <div className="fc-node-footer"><span><MessageSquareText size={13}/> {s.count}</span><span><UserRound size={13}/> {s.owner||'Sem responsável'}</span></div>
   <div className="fc-node-status">{s.status||'Planejada'}</div>
@@ -37,7 +50,7 @@ const FlowMiniMap = MiniMap as unknown as ComponentType<Record<string, unknown>>
 const FlowControls = Controls as unknown as ComponentType<Record<string, unknown>>
 const FlowHandle = Handle as unknown as ComponentType<Record<string, unknown>>
 export default function FunnelCanvas({steps,links,onChange,onSelect,activeId,fullscreen,onDelete}:{steps:CanvasStep[];links:CanvasLink[];onChange:(steps:CanvasStep[],links:CanvasLink[])=>void;onSelect:(id:string)=>void;onDelete:(id:string)=>void;activeId:string|null;fullscreen:boolean}){
- const initialNodes=useMemo<Node[]>(()=>steps.map((s,i)=>({id:s.id,type:'stage',position:s.position||{x:70+(i%4)*325,y:80+Math.floor(i/4)*255},selected:s.id===activeId,data:{title:s.title,detail:s.detail,kind:s.kind,color:s.color,owner:s.owner,status:s.status,count:s.messages.length,index:i+1}})),[steps,activeId])
+ const initialNodes=useMemo<Node[]>(()=>steps.map((s,i)=>({id:s.id,type:'stage',position:s.position||{x:70+(i%4)*325,y:80+Math.floor(i/4)*255},selected:s.id===activeId,data:{title:s.title,detail:s.detail,kind:s.kind,color:s.color,owner:s.owner,status:s.status,count:s.messages.length,index:i+1,livePlatform:s.livePlatform}})),[steps,activeId])
  const [nodes,setNodes]=useState<Node[]>(initialNodes)
  const nodesRef=useRef<Node[]>(initialNodes)
  const [selectionModifier,setSelectionModifier]=useState(false)
