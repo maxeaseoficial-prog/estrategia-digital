@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronUp, Copy, GitBranch, MessageSquareText, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import './funnels.css'
 import FunnelCanvas, { type CanvasLink, type CanvasStep } from './FunnelCanvas'
@@ -16,6 +16,9 @@ const newMessage = (): Message => ({ id:id(), title:'Nova mensagem', channel:'Wh
 
 export default function Funnels({ campaigns }: { campaigns: Campaign[] }) {
   const [funnels, setFunnels] = useState<Funnel[]>(read)
+  const undoStack = useRef<Record<string,Funnel[]>>({})
+  const redoStack = useRef<Record<string,Funnel[]>>({})
+  const [historyVersion,setHistoryVersion] = useState(0)
   const [selected, setSelected] = useState<string | null>(null)
   const [activeStep, setActiveStep] = useState<string | null>(null)
   const [query, setQuery] = useState('')
@@ -30,7 +33,56 @@ export default function Funnels({ campaigns }: { campaigns: Campaign[] }) {
   const funnel = funnels.find(f => f.id === selected)
   const step = funnel?.steps.find(s => s.id === activeStep)
   const message = step?.messages.find(m => m.id === messageId)
-  const patch = (fn: (f:Funnel) => Funnel) => setFunnels(old => old.map(f => f.id === selected ? fn(f) : f))
+  const commitFunnel = (fn:(f:Funnel)=>Funnel) => {
+    if(!selected)return
+    setFunnels(previous=>previous.map(f=>{
+      if(f.id!==selected)return f
+      const next=fn(f)
+      if(JSON.stringify(next)===JSON.stringify(f))return f
+      undoStack.current[selected]=[...(undoStack.current[selected]||[]).slice(-49),structuredClone(f)]
+      redoStack.current[selected]=[]
+      setHistoryVersion(v=>v+1)
+      return next
+    }))
+  }
+  const patch = commitFunnel
+  const undo = () => {
+    if(!selected)return
+    const stack=undoStack.current[selected]
+    if(!stack?.length)return
+    const previous=stack.pop()!
+    setFunnels(items=>items.map(f=>{
+      if(f.id!==selected)return f
+      redoStack.current[selected]=[...(redoStack.current[selected]||[]),structuredClone(f)]
+      return previous
+    }))
+    setHistoryVersion(v=>v+1)
+  }
+  const redo = () => {
+    if(!selected)return
+    const stack=redoStack.current[selected]
+    if(!stack?.length)return
+    const next=stack.pop()!
+    setFunnels(items=>items.map(f=>{
+      if(f.id!==selected)return f
+      undoStack.current[selected]=[...(undoStack.current[selected]||[]),structuredClone(f)]
+      return next
+    }))
+    setHistoryVersion(v=>v+1)
+  }
+  useEffect(()=>{
+    if(!selected)return
+    const onKey=(event:KeyboardEvent)=>{
+      const target=event.target as HTMLElement|null
+      if(target?.closest('input, textarea, select, [contenteditable="true"]'))return
+      if(!(event.metaKey||event.ctrlKey)||event.altKey||event.key.toLowerCase()!=='z')return
+      event.preventDefault()
+      if(event.shiftKey)redo()
+      else undo()
+    }
+    window.addEventListener('keydown',onKey)
+    return ()=>window.removeEventListener('keydown',onKey)
+  })
   const patchStep = (fn:(s:Step)=>Step) => patch(f => ({ ...f, steps:f.steps.map(s => s.id === activeStep ? fn(s) : s) }))
   const patchMessage = (fn:(m:Message)=>Message) => patchStep(s => ({ ...s, messages:s.messages.map(m => m.id === messageId ? fn(m) : m) }))
   const templates = [{title:'Recuperação de formulário',kind:'Recuperação',color:'#EF4444',detail:'Contato identificado que iniciou o diagnóstico mas não concluiu.'},{title:'Abandono de checkout',kind:'Recuperação',color:'#EF4444',detail:'Lead iniciou a compra, mas não concluiu o pagamento.'},{title:'Follow-up WhatsApp',kind:'Follow-up',color:'#16A34A',detail:'Mensagem de acompanhamento com gatilho e prazo definidos.'},{title:'Remarketing',kind:'Anúncio',color:'#3B82F6',detail:'Campanha para públicos que não avançaram.'},{title:'Confirmação de compra',kind:'Conversão',color:'#16A34A',detail:'Confirmar pedido e iniciar o pós-venda.'},{title:'Lead ausente da live',kind:'Recuperação',color:'#EAB308',detail:'Reengajar inscritos que não participaram da transmissão.'}]
@@ -62,7 +114,7 @@ export default function Funnels({ campaigns }: { campaigns: Campaign[] }) {
       <div className="fn-detail-head"><button className="fn-back" onClick={()=>{setSelected(null);setActiveStep(null);setMessageId(null)}}><ArrowLeft size={16}/> Todos os funis</button><div className="fn-detail-actions"><select aria-label="Status do funil" value={funnel.status} onChange={e=>patch(f=>({...f,status:e.target.value}))}><option>Planejamento</option><option>Em execução</option><option>Pausado</option><option>Concluído</option></select><button className="secondary-button" onClick={()=>setEditing(!editing)}><Pencil size={15}/> Editar funil</button></div></div>
       {editing?<div className="fn-edit-head"><label>Nome<input value={funnel.name} onChange={e=>patch(f=>({...f,name:e.target.value}))}/></label><label>Descrição<textarea value={funnel.description} onChange={e=>patch(f=>({...f,description:e.target.value}))}/></label><label>Campanha vinculada<select value={funnel.campaignId} onChange={e=>patch(f=>({...f,campaignId:e.target.value}))}><option value="">Sem campanha vinculada</option>{campaigns.map(c=><option value={c.id} key={c.id}>{c.name}</option>)}</select></label><button className="secondary-button" onClick={()=>setEditing(false)}>Concluir edição</button></div>:<div className="fn-detail-title"><span className="fn-kicker">MAPA ESTRATÉGICO</span><h2>{funnel.name}</h2><p>{funnel.description||'Organize as etapas e os materiais deste funil.'}</p></div>}
       <div className="fn-workspace">
-       <div className="fn-map"><div className="fn-section-head"><div><h3>Mapa visual do funil</h3><p>Organize os blocos, conecte ramificações e defina o responsável por cada etapa.</p></div><div className="fn-toolbar"><button className="secondary-button" onClick={()=>setFullscreen(v=>!v)}>{fullscreen?'Sair da tela cheia':'Expandir mapa'}</button><button className="secondary-button" onClick={()=>setTemplatesOpen(v=>!v)}>Modelos prontos</button><button className="primary-button" onClick={()=>insertStep()}><Plus size={16}/> Nova etapa</button></div></div>
+       <div className="fn-map"><div className="fn-section-head"><div><h3>Mapa visual do funil</h3><p>Organize os blocos, conecte ramificações e defina o responsável por cada etapa.</p></div><div className="fn-toolbar"><button className="secondary-button" title="Desfazer (⌘Z / Ctrl+Z)" disabled={!selected||!(undoStack.current[selected]?.length)} onClick={undo}>↶ Desfazer</button><button className="secondary-button" title="Refazer (⌘⇧Z / Ctrl+Shift+Z)" disabled={!selected||!(redoStack.current[selected]?.length)} onClick={redo}>↷ Refazer</button><button className="secondary-button" onClick={()=>setFullscreen(v=>!v)}>{fullscreen?'Sair da tela cheia':'Expandir mapa'}</button><button className="secondary-button" onClick={()=>setTemplatesOpen(v=>!v)}>Modelos prontos</button><button className="primary-button" onClick={()=>insertStep()}><Plus size={16}/> Nova etapa</button></div></div>
        {templatesOpen&&<div className="fn-templates">{templates.map(t=><button key={t.title} onClick={()=>insertStep(t)}><span style={{background:t.color}}/>{t.title}<Plus size={14}/></button>)}</div>}
        <FunnelCanvas steps={funnel.steps} links={funnel.links||funnel.steps.slice(1).map((s,i)=>({id:'legacy-'+s.id,source:funnel.steps[i].id,target:s.id}))} activeId={activeStep} onSelect={id=>{setActiveStep(id);setMessageId(null)}} onChange={updateMap} onDelete={deleteCanvasStep} fullscreen={fullscreen}/>
        </div>
