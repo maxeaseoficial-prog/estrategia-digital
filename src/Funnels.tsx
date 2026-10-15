@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronUp, Copy, GitBranch, MessageSquareText, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import './funnels.css'
-import FunnelCanvas, { type CanvasLink } from './FunnelCanvas'
+import FunnelCanvas, { type CanvasLink, type CanvasStep } from './FunnelCanvas'
 
 type Message = { id: string; title: string; channel: string; trigger: string; body: string }
 type Step = { id: string; title: string; detail: string; kind: string; color: string; messages: Message[]; owner?:string; status?:string; dueDate?:string; position?:{x:number;y:number} }
@@ -35,7 +35,7 @@ export default function Funnels({ campaigns }: { campaigns: Campaign[] }) {
   const patchMessage = (fn:(m:Message)=>Message) => patchStep(s => ({ ...s, messages:s.messages.map(m => m.id === messageId ? fn(m) : m) }))
   const templates = [{title:'Recuperação de formulário',kind:'Recuperação',color:'#EF4444',detail:'Contato identificado que iniciou o diagnóstico mas não concluiu.'},{title:'Abandono de checkout',kind:'Recuperação',color:'#EF4444',detail:'Lead iniciou a compra, mas não concluiu o pagamento.'},{title:'Follow-up WhatsApp',kind:'Follow-up',color:'#16A34A',detail:'Mensagem de acompanhamento com gatilho e prazo definidos.'},{title:'Remarketing',kind:'Anúncio',color:'#3B82F6',detail:'Campanha para públicos que não avançaram.'},{title:'Confirmação de compra',kind:'Conversão',color:'#16A34A',detail:'Confirmar pedido e iniciar o pós-venda.'},{title:'Lead ausente da live',kind:'Recuperação',color:'#EAB308',detail:'Reengajar inscritos que não participaram da transmissão.'}]
   const insertStep = (data?:{title:string;kind:string;color:string;detail:string}) => { const s={...newStep(),...data,position:{x:80+((funnel?.steps.length||0)%4)*320,y:90+Math.floor((funnel?.steps.length||0)/4)*250}};patch(f=>({...f,steps:[...f.steps,s]}));setActiveStep(s.id);setMessageId(null);setTemplatesOpen(false) }
-  const updateMap = (steps:Step[], links:CanvasLink[]) => patch(f=>({...f,steps,links}))
+  const updateMap = (positions:CanvasStep[], links:CanvasLink[]) => patch(f=>({...f,steps:f.steps.map(step=>({...step,position:positions.find(p=>p.id===step.id)?.position||step.position})),links}))
   const addFunnel = () => {
     if (!draft.name.trim()) return
     const f:Funnel = { id:id(), name:draft.name.trim(), description:draft.description, campaignId:draft.campaignId, status:'Planejamento', createdAt:new Date().toISOString(), steps:[], links:[] }
