@@ -14,7 +14,7 @@ function read(): Funnel[] { try { const value = JSON.parse(localStorage.getItem(
 const MODEL_TEMPLATES = [
   {title:'Anúncio Meta Ads',color:'#2563EB',detail:'Atrair novos leads com anúncios segmentados.'},
   {title:'Conteúdo orgânico',color:'#0891B2',detail:'Atrair a audiência por publicações e conteúdo.'},
-  {title:'Live semanal',color:'#7C3AED',detail:'Gerar conexão, autoridade e apresentar o próximo passo ao vivo.'},
+  {title:'Live',color:'#7C3AED',detail:'Gerar conexão, autoridade e apresentar o próximo passo ao vivo.'},
   {title:'Pitch e CTA',color:'#C026D3',detail:'Apresentar o convite e orientar o público para a próxima ação.'},
   {title:'Landing page',color:'#4F46E5',detail:'Apresentar a proposta e levar visitantes à conversão.'},
   {title:'Formulário / diagnóstico',color:'#D97706',detail:'Capturar e qualificar o contato com perguntas estratégicas.'},
