@@ -205,7 +205,15 @@ const emptyProduct: Omit<ProductItem, 'id'> = {
 }
 
 function App() {
-  const [page, setPage] = useState<Page>('dashboard')
+  const [page, setPage] = useState<Page>(() => {
+    try {
+      const saved = window.sessionStorage.getItem('strategy-current-page')
+      return saved && (['dashboard','events','campaigns','funnels','products'] as string[]).includes(saved) ? saved as Page : 'dashboard'
+    } catch { return 'dashboard' }
+  })
+  useEffect(() => {
+    try { window.sessionStorage.setItem('strategy-current-page',page) } catch { /* storage unavailable */ }
+  }, [page])
   const [collapsed, setCollapsed] = useState(false)
   const [events, setEvents] = useStoredState<EventItem[]>('strategy-events', [])
   const [campaigns, setCampaigns] = useStoredState<CampaignItem[]>('strategy-campaigns', [])
