@@ -122,7 +122,7 @@ export default function Funnels({ campaigns }: { campaigns: Campaign[] }) {
   const patchStep = (fn:(s:Step)=>Step) => patch(f => ({ ...f, steps:f.steps.map(s => s.id === activeStep ? fn(s) : s) }))
   const patchMessage = (fn:(m:Message)=>Message) => patchStep(s => ({ ...s, messages:s.messages.map(m => m.id === messageId ? fn(m) : m) }))
   const templates = MODEL_TEMPLATES
-  const insertStep = (data?:{title:string;color:string;detail:string}) => { const s={...newStep(),...(data?{...data,kind:data.title}:{}),position:{x:80+((funnel?.steps.length||0)%4)*320,y:90+Math.floor((funnel?.steps.length||0)/4)*250}};patch(f=>({...f,steps:[...f.steps,s]}));setActiveStep(s.id);setMessageId(null);setTemplatesOpen(false) }
+  const insertStep = (data?:{title:string;color:string;detail:string}) => { const last=funnel?.steps[funnel.steps.length-1];const index=funnel?.steps.length||0;const lastPosition=last?.position|| (last?{x:70+((index-1)%4)*325,y:80+Math.floor((index-1)/4)*255}:null);const position=lastPosition?{x:lastPosition.x+325,y:lastPosition.y}:{x:80,y:90};const s={...newStep(),...(data?{...data,kind:data.title}:{}),position};patch(f=>({...f,steps:[...f.steps,s]}));setActiveStep(s.id);setMessageId(null);setTemplatesOpen(false) }
   const updateMap = (positions:CanvasStep[], links:CanvasLink[]) => patch(f=>({...f,steps:f.steps.map(step=>({...step,position:positions.find(p=>p.id===step.id)?.position||step.position})),links}))
   const deleteCanvasStep = (stepId:string) => { patch(f=>({...f,steps:f.steps.filter(s=>s.id!==stepId),links:(f.links||[]).filter(l=>l.source!==stepId&&l.target!==stepId)}));if(activeStep===stepId){setActiveStep(null);setMessageId(null)} }
   const addFunnel = () => {
