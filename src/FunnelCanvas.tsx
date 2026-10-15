@@ -28,7 +28,7 @@ export default function FunnelCanvas({steps,links,onChange,onSelect,activeId,ful
  const initialNodes=useMemo<Node[]>(()=>steps.map((s,i)=>({id:s.id,type:'stage',position:s.position||{x:70+(i%4)*325,y:80+Math.floor(i/4)*255},selected:s.id===activeId,data:{title:s.title,detail:s.detail,kind:s.kind,color:s.color,owner:s.owner,status:s.status,count:s.messages.length,index:i+1}})),[steps,activeId])
  const [nodes,setNodes]=useState<Node[]>(initialNodes)
  const [contextMenu,setContextMenu]=useState<{id:string;title:string;x:number;y:number}|null>(null)
- useEffect(()=>{setNodes(previous=>initialNodes.map(n=>({...n,position:previous.find(old=>old.id===n.id)?.position||n.position,selected:n.selected})))},[initialNodes])
+ useEffect(()=>{setNodes(initialNodes)},[initialNodes])
  const edges=useMemo<Edge[]>(()=>links.filter(e=>steps.some(s=>s.id===e.source)&&steps.some(s=>s.id===e.target)).map(e=>({id:e.id,source:e.source,target:e.target,label:e.label,type:'smoothstep',animated:false,style:{stroke:'#9674c3',strokeWidth:2},labelStyle:{fontSize:11,fill:'#555'},labelBgStyle:{fill:'#fff',fillOpacity:.95}})),[links,steps])
  const handleNodesChange:OnNodesChange=useCallback(changes=>{setNodes(current=>applyNodeChanges(changes,current))},[])
  const handleDragStop=useCallback((_:unknown,node:Node)=>{onChange(steps.map(s=>s.id===node.id?{...s,position:{...node.position}}:s),links)},[steps,links,onChange])
