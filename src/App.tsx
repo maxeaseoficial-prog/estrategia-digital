@@ -1,7 +1,9 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import Creatives from './Creatives'
 import Funnels from './Funnels'
 import {
   CalendarDays,
+  Clapperboard,
   CheckSquare2,
   ChevronLeft,
   ChevronRight,
@@ -25,7 +27,7 @@ import {
   subscribeSharedStrategyState,
 } from './sharedStore'
 
-type Page = 'dashboard' | 'events' | 'campaigns' | 'funnels' | 'products'
+type Page = 'dashboard' | 'events' | 'campaigns' | 'funnels' | 'creatives' | 'products'
 type CalendarMode = 'month' | 'week' | 'day'
 
 type ProductType = 'digital' | 'live' | 'event'
@@ -208,7 +210,7 @@ function App() {
   const [page, setPage] = useState<Page>(() => {
     try {
       const saved = window.sessionStorage.getItem('strategy-current-page')
-      return saved && (['dashboard','events','campaigns','funnels','products'] as string[]).includes(saved) ? saved as Page : 'dashboard'
+      return saved && (['dashboard','events','campaigns','funnels','creatives','products'] as string[]).includes(saved) ? saved as Page : 'dashboard'
     } catch { return 'dashboard' }
   })
   useEffect(() => {
@@ -568,6 +570,7 @@ function App() {
             {!collapsed && <span>Campanhas</span>}
           </button>
           <button className={page === 'funnels' ? 'active fn-sidebar-child' : 'fn-sidebar-child'} onClick={() => setPage('funnels')} title="Funis de campanha"><Megaphone size={17} />{!collapsed && <span>Funis de campanha</span>}</button>
+          <button className={page === 'creatives' ? 'active' : ''} onClick={() => setPage('creatives')}><Clapperboard size={19}/>{!collapsed&&<span>Criativos</span>}</button>
           <button
             className={page === 'products' ? 'active' : ''}
             onClick={() => setPage('products')}
@@ -598,6 +601,7 @@ function App() {
               {page === 'events' && 'Eventos'}
               {page === 'campaigns' && 'Campanhas'}
               {page === 'funnels' && 'Funis de campanha'}
+              {page === 'creatives' && 'Criativos'}
               {page === 'products' && 'Produtos'}
             </h1>
           </div>
@@ -653,6 +657,7 @@ function App() {
         )}
 
         {page === 'funnels' && <Funnels campaigns={campaigns.map(c => ({ id:c.id, name:c.name }))} />}
+        {page === 'creatives' && <Creatives campaigns={campaigns.map(c=>({id:c.id,name:c.name}))} />}
 
         {page === 'campaigns' && (
           <CampaignsPage
