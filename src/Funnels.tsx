@@ -18,7 +18,7 @@ export default function Funnels({ campaigns }: { campaigns: Campaign[] }) {
   const [funnels, setFunnels] = useState<Funnel[]>(read)
   const undoStack = useRef<Record<string,Funnel[]>>({})
   const redoStack = useRef<Record<string,Funnel[]>>({})
-  const [historyVersion,setHistoryVersion] = useState(0)
+  const [,setHistoryVersion] = useState(0)
   const [selected, setSelected] = useState<string | null>(null)
   const [activeStep, setActiveStep] = useState<string | null>(null)
   const [query, setQuery] = useState('')
