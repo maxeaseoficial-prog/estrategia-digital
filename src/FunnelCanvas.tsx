@@ -15,6 +15,8 @@ function StageNode({data,selected}:NodeProps) {
   <div className="fc-node-footer"><span><MessageSquareText size={13}/> {s.count}</span><span><UserRound size={13}/> {s.owner||'Sem responsável'}</span></div>
   <div className="fc-node-status">{s.status||'Planejada'}</div>
   <FlowHandle id="output" type="source" position={Position.Right} className="fc-handle" isConnectable={true}/>
+  <FlowHandle id="top" type="source" position={Position.Top} className="fc-handle" isConnectable={true}/>
+  <FlowHandle id="bottom" type="source" position={Position.Bottom} className="fc-handle" isConnectable={true}/>
  </div>
 }
 const nodeTypes={stage:StageNode}
