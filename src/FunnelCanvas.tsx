@@ -6,6 +6,8 @@ import { GitBranch, MessageSquareText, UserRound, Video, Megaphone, FileText, Cl
 
 export type CanvasStep = { id:string; title:string; detail:string; kind:string; color:string; messages:{id:string}[]; owner?:string; status?:string; livePlatform?:string; position?:{x:number;y:number} }
 export type CanvasLink = { id:string; source:string; target:string; label?:string; sourceHandle?:string|null; targetHandle?:string|null }
+function MetaBrandIcon(){return <span className="fc-stage-brand fc-meta" title="Meta Ads"><svg viewBox="0 0 32 32" width="23" height="23" fill="none" aria-hidden="true"><path d="M4 20c1.3-7 4.5-11 8.2-11 3.2 0 5.6 4.2 8.3 9.2 1.2 2.2 2.2 4.1 3.6 4.1 1.7 0 2.5-2.3 2.5-5.5 0-3.1-.9-5.1-2.8-5.1-2.7 0-5.1 3.8-7.5 8.1-2.4 4.4-4.8 7.8-7.8 7.8C4.4 27.6 2 24.5 4 20Z" stroke="white" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"/></svg></span>}
+function WhatsAppBrandIcon(){return <span className="fc-stage-brand fc-whatsapp" title="WhatsApp"><svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true"><path d="M16 4.2a11.7 11.7 0 0 0-10 17.8l-1.7 5.7 5.9-1.6a11.7 11.7 0 1 0 5.8-21.9Z" stroke="white" strokeWidth="2.3" fill="none" strokeLinejoin="round"/><path fill="white" d="M11.2 10.1c-.5.1-1.5 1.5-1.5 3.1 0 2 2.6 5.2 4.1 6.4 1.6 1.3 4.3 2.9 6.5 2.6 1.6-.2 2.6-1.7 2.6-2.7 0-.4-2.8-1.6-3.1-1.6-.3 0-1.1 1.4-1.5 1.4-.6 0-3.6-2.2-4.1-3-.3-.5 1.1-1.2 1-1.7-.1-.5-1.2-3-1.7-3.1Z"/></svg></span>}
 function StageIcon({kind,platform,color}:{kind:string;platform?:string;color:string}){
  const k=(kind||'').toLowerCase()
  const p=(platform||'').toLowerCase()
@@ -15,6 +17,8 @@ function StageIcon({kind,platform,color}:{kind:string;platform?:string;color:str
   if(p.includes('instagram'))return <span className="fc-stage-brand fc-instagram" title="Instagram"><svg viewBox="0 0 32 32" width="23" height="23" fill="none"><rect x="6" y="6" width="20" height="20" rx="6" stroke="white" strokeWidth="2.8"/><circle cx="16" cy="16" r="5" stroke="white" strokeWidth="2.8"/><circle cx="22.5" cy="9.5" r="1.7" fill="white"/></svg></span>
   return <span className="fc-stage-brand" style={{background:color}} title="Live"><Video size={18}/></span>
  }
+ if(k.includes('meta ads'))return <MetaBrandIcon/>
+ if(k.includes('whatsapp'))return <WhatsAppBrandIcon/>
  const entry:[string,any][]=[['meta ads',Megaphone],['anúncio',Megaphone],['conteúdo',FileText],['pitch',MousePointerClick],['cta',MousePointerClick],['landing',LayoutTemplate],['formulário',ClipboardList],['diagnóstico',ClipboardList],['checkout',ShoppingCart],['página',FileText],['whatsapp',MessageCircle],['aquecimento',Users],['nutrição',Users],['lembrete',Bell],['ausente',UserX],['remarketing',RefreshCw],['confirmação',BadgeCheck],['pós-venda',BadgeCheck],['pesquisa',ChartNoAxesCombined],['feedback',ChartNoAxesCombined],['decisão',CircleHelp],['oferta',CreditCard],['e-mail',Mail],['evento',CalendarDays],['recuperação',RefreshCw]]
  const Icon=entry.find(([text])=>k.includes(text))?.[1]||CircleHelp
  return <span className="fc-stage-brand" style={{background:color}}><Icon size={18} strokeWidth={2.3}/></span>
