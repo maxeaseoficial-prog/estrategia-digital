@@ -45,7 +45,15 @@ export default function Funnels({ campaigns }: { campaigns: Campaign[] }) {
   const undoStack = useRef<Record<string,Funnel[]>>({})
   const redoStack = useRef<Record<string,Funnel[]>>({})
   const [,setHistoryVersion] = useState(0)
-  const [selected, setSelected] = useState<string | null>(null)
+  const [selected, setSelected] = useState<string | null>(() => {
+    try { return window.sessionStorage.getItem('strategy-open-funnel') || null } catch { return null }
+  })
+  useEffect(() => {
+    try {
+      if (selected && funnels.some(f => f.id === selected)) window.sessionStorage.setItem('strategy-open-funnel',selected)
+      else window.sessionStorage.removeItem('strategy-open-funnel')
+    } catch { /* storage unavailable */ }
+  }, [selected,funnels])
   const [activeStep, setActiveStep] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState(false)
