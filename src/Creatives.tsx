@@ -24,6 +24,8 @@ export default function Creatives({campaigns}:{campaigns:Campaign[]}){
  const [campaign,setCampaign]=useState('')
  const [filter,setFilter]=useState('')
  const [deleteId,setDeleteId]=useState<string|null>(null)
+ const [pdfError,setPdfError]=useState('')
+ const [pdfBusy,setPdfBusy]=useState(false)
  useEffect(()=>{localStorage.setItem(KEY,JSON.stringify(items))},[items])
  const current=items.find(c=>c.id===selected)
  const filtered=useMemo(()=>items.filter(c=>(!campaign||c.campaignId===campaign)&&(!filter||c.status===filter)&&[c.name,c.owner,c.script,c.notes].join(' ').toLowerCase().includes(search.toLowerCase())),[items,campaign,filter,search])
