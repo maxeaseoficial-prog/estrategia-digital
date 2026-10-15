@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import Funnels from './Funnels'
 import {
   CalendarDays,
   CheckSquare2,
@@ -24,7 +25,7 @@ import {
   subscribeSharedStrategyState,
 } from './sharedStore'
 
-type Page = 'dashboard' | 'events' | 'campaigns' | 'products'
+type Page = 'dashboard' | 'events' | 'campaigns' | 'funnels' | 'products'
 type CalendarMode = 'month' | 'week' | 'day'
 
 type ProductType = 'digital' | 'live' | 'event'
@@ -558,6 +559,7 @@ function App() {
             <Megaphone size={19} />
             {!collapsed && <span>Campanhas</span>}
           </button>
+          <button className={page === 'funnels' ? 'active fn-sidebar-child' : 'fn-sidebar-child'} onClick={() => setPage('funnels')} title="Funis de campanha"><Megaphone size={17} />{!collapsed && <span>Funis de campanha</span>}</button>
           <button
             className={page === 'products' ? 'active' : ''}
             onClick={() => setPage('products')}
@@ -587,6 +589,7 @@ function App() {
               {page === 'dashboard' && 'Calendário estratégico'}
               {page === 'events' && 'Eventos'}
               {page === 'campaigns' && 'Campanhas'}
+              {page === 'funnels' && 'Funis de campanha'}
               {page === 'products' && 'Produtos'}
             </h1>
           </div>
@@ -640,6 +643,8 @@ function App() {
             }
           />
         )}
+
+        {page === 'funnels' && <Funnels campaigns={campaigns.map(c => ({ id:c.id, name:c.name }))} />}
 
         {page === 'campaigns' && (
           <CampaignsPage
