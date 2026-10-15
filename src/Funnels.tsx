@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronUp, Copy, GitBranch, MessageSquareText, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronDown, ChevronUp, Copy, GitBranch, MessageSquareText, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import './funnels.css'
 import FunnelCanvas, { type CanvasLink, type CanvasStep } from './FunnelCanvas'
 
@@ -51,6 +51,8 @@ export default function Funnels({ campaigns }: { campaigns: Campaign[] }) {
   const [editing, setEditing] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
   const [templatesOpen, setTemplatesOpen] = useState(false)
+  const [modelMenuOpen,setModelMenuOpen] = useState(false)
+  const [modelSearch,setModelSearch] = useState('')
   const [messageId, setMessageId] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
   const [newFunnel, setNewFunnel] = useState(false)
@@ -142,11 +144,11 @@ export default function Funnels({ campaigns }: { campaigns: Campaign[] }) {
       <div className="fn-workspace">
        <div className="fn-map"><div className="fn-section-head"><div><h3>Mapa visual do funil</h3><p>Organize os blocos, conecte ramificações e defina o responsável por cada etapa.</p></div><div className="fn-toolbar"><button className="secondary-button" title="Desfazer (⌘Z / Ctrl+Z)" disabled={!selected||!(undoStack.current[selected]?.length)} onClick={undo}>↶ Desfazer</button><button className="secondary-button" title="Refazer (⌘⇧Z / Ctrl+Shift+Z)" disabled={!selected||!(redoStack.current[selected]?.length)} onClick={redo}>↷ Refazer</button><button className="secondary-button" onClick={()=>setFullscreen(v=>!v)}>{fullscreen?'Sair da tela cheia':'Expandir mapa'}</button><button className="secondary-button" onClick={()=>setTemplatesOpen(v=>!v)}>Catálogo de modelos</button><button className="primary-button" onClick={()=>insertStep()}><Plus size={16}/> Nova etapa</button></div></div>
        {templatesOpen&&<div className="fn-templates">{templates.map(t=><button key={t.title} onClick={()=>insertStep(t)}><span style={{background:t.color}}/>{t.title}<Plus size={14}/></button>)}</div>}
-       <FunnelCanvas steps={funnel.steps} links={funnel.links||funnel.steps.slice(1).map((s,i)=>({id:'legacy-'+s.id,source:funnel.steps[i].id,target:s.id}))} activeId={activeStep} onSelect={id=>{setActiveStep(id);setMessageId(null)}} onChange={updateMap} onDelete={deleteCanvasStep} fullscreen={fullscreen}/>
+       <FunnelCanvas steps={funnel.steps} links={funnel.links||funnel.steps.slice(1).map((s,i)=>({id:'legacy-'+s.id,source:funnel.steps[i].id,target:s.id}))} activeId={activeStep} onSelect={id=>{setActiveStep(id);setMessageId(null);setModelMenuOpen(false)}} onChange={updateMap} onDelete={deleteCanvasStep} fullscreen={fullscreen}/>
        </div>
        {step&&<aside className="fn-inspector"><div className="fn-inspector-header"><div><span className="fn-kicker">CONFIGURAÇÃO DA ETAPA</span><h3>{step.title}</h3></div><button className="fn-icon" title="Fechar" onClick={()=>{setActiveStep(null);setMessageId(null)}}><X size={18}/></button></div>
          <label>Nome da etapa<input value={step.title} onChange={e=>patchStep(s=>({...s,title:e.target.value}))}/></label>
-         <label>Modelo de etapa<select value={step.kind} onChange={e=>{const model=templateByTitle(e.target.value);patchStep(current=>({...current,kind:e.target.value,...(model?{color:model.color,detail:model.detail,title:model.title}:{})}))}}>{!templateByTitle(step.kind)&&<option value={step.kind}>Legado: {step.kind}</option>}{MODEL_TEMPLATES.map(model=><option key={model.title} value={model.title}>{model.title}</option>)}</select></label>
+         <div className="fn-model-field"><div className="fn-label">Modelo de etapa</div><button type="button" className="fn-model-trigger" aria-expanded={modelMenuOpen} onClick={()=>{setModelMenuOpen(v=>!v);setModelSearch('')}}><span className="fn-model-dot" style={{background:templateByTitle(step.kind)?.color||step.color}}/><span>{templateByTitle(step.kind)?.title||`Legado: ${step.kind}`}</span><ChevronDown size={16}/></button>{modelMenuOpen&&<div className="fn-model-menu"><div className="fn-model-filter"><Search size={15}/><input autoFocus placeholder="Buscar modelo..." value={modelSearch} onChange={e=>setModelSearch(e.target.value)}/></div><div className="fn-model-options">{MODEL_TEMPLATES.filter(m=>m.title.toLowerCase().includes(modelSearch.toLowerCase())).map(m=><button type="button" key={m.title} className={step.kind===m.title?'chosen':''} onClick={()=>{patchStep(current=>({...current,kind:m.title,color:m.color,detail:m.detail,title:m.title}));setModelMenuOpen(false)}}><span className="fn-model-dot" style={{background:m.color}}/><span>{m.title}</span>{step.kind===m.title&&<Check size={15}/>}</button>)}{!MODEL_TEMPLATES.some(m=>m.title.toLowerCase().includes(modelSearch.toLowerCase()))&&<p>Nenhum modelo encontrado.</p>}</div></div>}</div>
          <label>Responsável pela etapa<input value={step.owner||''} placeholder="Ex.: Leonardo, Henrique, Comercial" onChange={e=>patchStep(s=>({...s,owner:e.target.value}))}/></label>
          <label>Status<select value={step.status||'Planejada'} onChange={e=>patchStep(s=>({...s,status:e.target.value}))}>{['Planejada','Em andamento','Pronta','Ativa','Pausada','Concluída'].map(v=><option key={v}>{v}</option>)}</select></label>
          <label>Prazo<input type="date" value={step.dueDate||''} onChange={e=>patchStep(s=>({...s,dueDate:e.target.value}))}/></label>
