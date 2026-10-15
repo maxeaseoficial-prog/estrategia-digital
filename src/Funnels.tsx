@@ -11,7 +11,33 @@ const STORAGE = 'strategy-campaign-funnels-v1'
 const colors = ['#9674C3', '#7856A8', '#EAB308', '#3B82F6', '#16A34A', '#EF4444', '#64748B', '#111827']
 const id = () => crypto.randomUUID()
 function read(): Funnel[] { try { const value = JSON.parse(localStorage.getItem(STORAGE) || '[]'); return Array.isArray(value) ? value : [] } catch { return [] } }
-const newStep = (): Step => ({ id:id(), title:'Nova etapa', detail:'Descreva o objetivo e a ação desta etapa.', kind:'Ação', color:'#9674C3', messages:[] })
+const MODEL_TEMPLATES = [
+  {title:'Anúncio Meta Ads',color:'#2563EB',detail:'Atrair novos leads com anúncios segmentados.'},
+  {title:'Conteúdo orgânico',color:'#0891B2',detail:'Atrair a audiência por publicações e conteúdo.'},
+  {title:'Live semanal',color:'#7C3AED',detail:'Gerar conexão, autoridade e apresentar o próximo passo ao vivo.'},
+  {title:'Pitch e CTA',color:'#C026D3',detail:'Apresentar o convite e orientar o público para a próxima ação.'},
+  {title:'Landing page',color:'#4F46E5',detail:'Apresentar a proposta e levar visitantes à conversão.'},
+  {title:'Formulário / diagnóstico',color:'#D97706',detail:'Capturar e qualificar o contato com perguntas estratégicas.'},
+  {title:'Recuperação de formulário',color:'#DC2626',detail:'Reengajar contatos identificados que não concluíram o formulário.'},
+  {title:'Página de vendas',color:'#0D9488',detail:'Explicar a oferta, benefícios e condições da compra.'},
+  {title:'Checkout',color:'#0284C7',detail:'Concluir a compra com formas de pagamento claras.'},
+  {title:'Abandono de checkout',color:'#E11D48',detail:'Recuperar interessados que iniciaram o pagamento sem concluir.'},
+  {title:'Follow-up WhatsApp',color:'#16A34A',detail:'Enviar acompanhamento contextualizado com prazo e gatilho.'},
+  {title:'Boas-vindas WhatsApp',color:'#65A30D',detail:'Confirmar inscrição e orientar o contato sobre o próximo passo.'},
+  {title:'Aquecimento / nutrição',color:'#CA8A04',detail:'Manter o interesse com conteúdos e preparação para o evento.'},
+  {title:'Lembrete de evento',color:'#EA580C',detail:'Lembrar o participante da data, horário e link de acesso.'},
+  {title:'Lead ausente na live',color:'#B45309',detail:'Reengajar inscritos que não participaram da transmissão.'},
+  {title:'Remarketing',color:'#1D4ED8',detail:'Impactar novamente públicos que interagiram, mas não avançaram.'},
+  {title:'Oferta / pitch de vendas',color:'#9333EA',detail:'Apresentar a oferta e levar o lead à decisão de compra.'},
+  {title:'Confirmação de compra',color:'#059669',detail:'Confirmar pagamento e iniciar a jornada pós-venda.'},
+  {title:'Pós-venda',color:'#475569',detail:'Organizar orientações, relacionamento e próximas entregas.'},
+  {title:'Pesquisa / feedback',color:'#BE185D',detail:'Coletar avaliações e identificar oportunidades de melhoria.'},
+  {title:'Decisão / condição',color:'#A16207',detail:'Separar caminhos conforme ações ou respostas do lead.'},
+  {title:'Etapa personalizada',color:'#64748B',detail:'Descreva o objetivo e a ação desta etapa.'},
+] as const
+const templateByTitle = (title:string) => MODEL_TEMPLATES.find(t=>t.title===title)
+
+const newStep = (): Step => ({ id:id(), title:'Nova etapa', detail:'Descreva o objetivo e a ação desta etapa.', kind:'Etapa personalizada', color:'#64748B', messages:[] })
 const newMessage = (): Message => ({ id:id(), title:'Nova mensagem', channel:'WhatsApp', trigger:'Após a etapa', body:'' })
 
 export default function Funnels({ campaigns }: { campaigns: Campaign[] }) {
@@ -85,8 +111,8 @@ export default function Funnels({ campaigns }: { campaigns: Campaign[] }) {
   })
   const patchStep = (fn:(s:Step)=>Step) => patch(f => ({ ...f, steps:f.steps.map(s => s.id === activeStep ? fn(s) : s) }))
   const patchMessage = (fn:(m:Message)=>Message) => patchStep(s => ({ ...s, messages:s.messages.map(m => m.id === messageId ? fn(m) : m) }))
-  const templates = [{title:'Recuperação de formulário',kind:'Recuperação',color:'#EF4444',detail:'Contato identificado que iniciou o diagnóstico mas não concluiu.'},{title:'Abandono de checkout',kind:'Recuperação',color:'#EF4444',detail:'Lead iniciou a compra, mas não concluiu o pagamento.'},{title:'Follow-up WhatsApp',kind:'Follow-up',color:'#16A34A',detail:'Mensagem de acompanhamento com gatilho e prazo definidos.'},{title:'Remarketing',kind:'Anúncio',color:'#3B82F6',detail:'Campanha para públicos que não avançaram.'},{title:'Confirmação de compra',kind:'Conversão',color:'#16A34A',detail:'Confirmar pedido e iniciar o pós-venda.'},{title:'Lead ausente da live',kind:'Recuperação',color:'#EAB308',detail:'Reengajar inscritos que não participaram da transmissão.'}]
-  const insertStep = (data?:{title:string;kind:string;color:string;detail:string}) => { const s={...newStep(),...data,position:{x:80+((funnel?.steps.length||0)%4)*320,y:90+Math.floor((funnel?.steps.length||0)/4)*250}};patch(f=>({...f,steps:[...f.steps,s]}));setActiveStep(s.id);setMessageId(null);setTemplatesOpen(false) }
+  const templates = MODEL_TEMPLATES
+  const insertStep = (data?:{title:string;color:string;detail:string}) => { const s={...newStep(),...(data?{...data,kind:data.title}:{}),position:{x:80+((funnel?.steps.length||0)%4)*320,y:90+Math.floor((funnel?.steps.length||0)/4)*250}};patch(f=>({...f,steps:[...f.steps,s]}));setActiveStep(s.id);setMessageId(null);setTemplatesOpen(false) }
   const updateMap = (positions:CanvasStep[], links:CanvasLink[]) => patch(f=>({...f,steps:f.steps.map(step=>({...step,position:positions.find(p=>p.id===step.id)?.position||step.position})),links}))
   const deleteCanvasStep = (stepId:string) => { patch(f=>({...f,steps:f.steps.filter(s=>s.id!==stepId),links:(f.links||[]).filter(l=>l.source!==stepId&&l.target!==stepId)}));if(activeStep===stepId){setActiveStep(null);setMessageId(null)} }
   const addFunnel = () => {
@@ -114,13 +140,13 @@ export default function Funnels({ campaigns }: { campaigns: Campaign[] }) {
       <div className="fn-detail-head"><button className="fn-back" onClick={()=>{setFullscreen(false);setTemplatesOpen(false);setEditing(false);setSelected(null);setActiveStep(null);setMessageId(null)}}><ArrowLeft size={16}/> Todos os funis</button><div className="fn-detail-actions"><select aria-label="Status do funil" value={funnel.status} onChange={e=>patch(f=>({...f,status:e.target.value}))}><option>Planejamento</option><option>Em execução</option><option>Pausado</option><option>Concluído</option></select><button className="secondary-button" onClick={()=>setEditing(!editing)}><Pencil size={15}/> Editar funil</button></div></div>
       {editing?<div className="fn-edit-head"><label>Nome<input value={funnel.name} onChange={e=>patch(f=>({...f,name:e.target.value}))}/></label><label>Descrição<textarea value={funnel.description} onChange={e=>patch(f=>({...f,description:e.target.value}))}/></label><label>Campanha vinculada<select value={funnel.campaignId} onChange={e=>patch(f=>({...f,campaignId:e.target.value}))}><option value="">Sem campanha vinculada</option>{campaigns.map(c=><option value={c.id} key={c.id}>{c.name}</option>)}</select></label><button className="secondary-button" onClick={()=>setEditing(false)}>Concluir edição</button></div>:<div className="fn-detail-title"><span className="fn-kicker">MAPA ESTRATÉGICO</span><h2>{funnel.name}</h2><p>{funnel.description||'Organize as etapas e os materiais deste funil.'}</p></div>}
       <div className="fn-workspace">
-       <div className="fn-map"><div className="fn-section-head"><div><h3>Mapa visual do funil</h3><p>Organize os blocos, conecte ramificações e defina o responsável por cada etapa.</p></div><div className="fn-toolbar"><button className="secondary-button" title="Desfazer (⌘Z / Ctrl+Z)" disabled={!selected||!(undoStack.current[selected]?.length)} onClick={undo}>↶ Desfazer</button><button className="secondary-button" title="Refazer (⌘⇧Z / Ctrl+Shift+Z)" disabled={!selected||!(redoStack.current[selected]?.length)} onClick={redo}>↷ Refazer</button><button className="secondary-button" onClick={()=>setFullscreen(v=>!v)}>{fullscreen?'Sair da tela cheia':'Expandir mapa'}</button><button className="secondary-button" onClick={()=>setTemplatesOpen(v=>!v)}>Modelos prontos</button><button className="primary-button" onClick={()=>insertStep()}><Plus size={16}/> Nova etapa</button></div></div>
+       <div className="fn-map"><div className="fn-section-head"><div><h3>Mapa visual do funil</h3><p>Organize os blocos, conecte ramificações e defina o responsável por cada etapa.</p></div><div className="fn-toolbar"><button className="secondary-button" title="Desfazer (⌘Z / Ctrl+Z)" disabled={!selected||!(undoStack.current[selected]?.length)} onClick={undo}>↶ Desfazer</button><button className="secondary-button" title="Refazer (⌘⇧Z / Ctrl+Shift+Z)" disabled={!selected||!(redoStack.current[selected]?.length)} onClick={redo}>↷ Refazer</button><button className="secondary-button" onClick={()=>setFullscreen(v=>!v)}>{fullscreen?'Sair da tela cheia':'Expandir mapa'}</button><button className="secondary-button" onClick={()=>setTemplatesOpen(v=>!v)}>Catálogo de modelos</button><button className="primary-button" onClick={()=>insertStep()}><Plus size={16}/> Nova etapa</button></div></div>
        {templatesOpen&&<div className="fn-templates">{templates.map(t=><button key={t.title} onClick={()=>insertStep(t)}><span style={{background:t.color}}/>{t.title}<Plus size={14}/></button>)}</div>}
        <FunnelCanvas steps={funnel.steps} links={funnel.links||funnel.steps.slice(1).map((s,i)=>({id:'legacy-'+s.id,source:funnel.steps[i].id,target:s.id}))} activeId={activeStep} onSelect={id=>{setActiveStep(id);setMessageId(null)}} onChange={updateMap} onDelete={deleteCanvasStep} fullscreen={fullscreen}/>
        </div>
        {step&&<aside className="fn-inspector"><div className="fn-inspector-header"><div><span className="fn-kicker">CONFIGURAÇÃO DA ETAPA</span><h3>{step.title}</h3></div><button className="fn-icon" title="Fechar" onClick={()=>{setActiveStep(null);setMessageId(null)}}><X size={18}/></button></div>
          <label>Nome da etapa<input value={step.title} onChange={e=>patchStep(s=>({...s,title:e.target.value}))}/></label>
-         <label>Tipo<select value={step.kind} onChange={e=>patchStep(s=>({...s,kind:e.target.value}))}>{['Ação','Anúncio','Live','Formulário','Página','WhatsApp','Follow-up','Recuperação','Oferta','Conversão','Outro'].map(k=><option key={k}>{k}</option>)}</select></label>
+         <label>Modelo de etapa<select value={step.kind} onChange={e=>{const model=templateByTitle(e.target.value);patchStep(current=>({...current,kind:e.target.value,...(model?{color:model.color,detail:model.detail,title:model.title}:{})}))}}>{!templateByTitle(step.kind)&&<option value={step.kind}>Legado: {step.kind}</option>}{MODEL_TEMPLATES.map(model=><option key={model.title} value={model.title}>{model.title}</option>)}</select></label>
          <label>Responsável pela etapa<input value={step.owner||''} placeholder="Ex.: Leonardo, Henrique, Comercial" onChange={e=>patchStep(s=>({...s,owner:e.target.value}))}/></label>
          <label>Status<select value={step.status||'Planejada'} onChange={e=>patchStep(s=>({...s,status:e.target.value}))}>{['Planejada','Em andamento','Pronta','Ativa','Pausada','Concluída'].map(v=><option key={v}>{v}</option>)}</select></label>
          <label>Prazo<input type="date" value={step.dueDate||''} onChange={e=>patchStep(s=>({...s,dueDate:e.target.value}))}/></label>
