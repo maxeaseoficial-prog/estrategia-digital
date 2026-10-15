@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronDown, ChevronUp, Copy, GitBranch, MessageSquareText, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronUp, Copy, GitBranch, MessageSquareText, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import './funnels.css'
 import FunnelCanvas, { type CanvasLink, type CanvasStep } from './FunnelCanvas'
 
