@@ -2,6 +2,7 @@ import {useEffect,useMemo,useState} from 'react'
 import {Plus,Copy,Trash2,CalendarDays,MessageSquareText,ArrowRight,FileText,Video,Mic,FileDown,BarChart3,Link2} from 'lucide-react'
 import './cadences.css'
 import SalesCadence from './SalesCadence'
+import FormRecovery from './FormRecovery'
 import {saveAttachment,loadAttachment,deleteAttachment} from './cadenceAttachments'
 type Stage={id:string;title:string;kind:string;dueDate?:string;livePlatform?:string}
 type Entry={id:string;title:string;goal:string;mode:'relative'|'fixed';offset:number;date:string;time:string;format:string;body:string;pollOptions?:string[];multipleAnswers?:boolean;assetUrl:string;attachmentName?:string;attachmentType?:string;owner:string;resource:string;status:string}
@@ -51,7 +52,7 @@ export default function Cadences({funnelId,stages}:{funnelId:string;stages:Stage
  return <section className="cd-root">
  <div className="cd-head"><div><h3>Cadências de mensagens</h3><p>Planeje o aquecimento, os lembretes e o acompanhamento da comunidade.</p></div><button className="primary-button" onClick={create}><Plus size={16}/> Nova mensagem</button></div>
  <div className="cd-categories">{categories.map(c=><button key={c} className={c===category?'active':''} onClick={()=>setCategory(c)}>{c}</button>)}</div>
- {category==='Vendas'?<SalesCadence funnelId={funnelId}/>:category!=='Grupo WhatsApp'?<div className="cd-empty"><MessageSquareText size={30}/><h3>{category}</h3><p>Categoria reservada para a próxima etapa. Nesta versão vamos organizar primeiro as mensagens do grupo de WhatsApp.</p></div>:<>
+ {category==='Vendas'?<SalesCadence funnelId={funnelId}/>:category==='Recuperação de formulário'?<FormRecovery funnelId={funnelId}/>:category!=='Grupo WhatsApp'?<div className="cd-empty"><MessageSquareText size={30}/><h3>{category}</h3><p>Categoria reservada para a próxima etapa. Nesta versão vamos organizar primeiro as mensagens do grupo de WhatsApp.</p></div>:<>
  <div className="cd-toolbar"><label>Evento / live de referência<select value={reference} onChange={e=>setReference(e.target.value)}><option value="">Data manual</option>{liveStages.map(s=><option key={s.id} value={s.id}>{s.title}{s.dueDate?' · '+pretty(s.dueDate):''}</option>)}</select></label><label>Data da transmissão<input type="date" value={refDate} disabled={!!reference&&!!refStage?.dueDate} onChange={e=>setDate(e.target.value)}/></label><div className="cd-view">{(['timeline','calendar','list'] as const).map(v=><button key={v} className={view===v?'active':''} onClick={()=>setView(v)}>{v==='timeline'?'Sequência':v==='calendar'?'Calendário':'Lista'}</button>)}</div></div>
  {!refDate&&<p className="cd-warning">Selecione a data do evento para calcular mensagens relativas, como D-7 e D-1.</p>}
  {entries.length===0?<div className="cd-empty"><CalendarDays size={29}/><h3>Comece sua cadência do grupo</h3><p>Cadastre mensagens individualmente ou carregue uma sequência de aquecimento editável.</p><button className="secondary-button" onClick={()=>setEntries(model())}>Aplicar modelo de aquecimento</button></div>:<>
