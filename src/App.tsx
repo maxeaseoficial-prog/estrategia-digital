@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import Creatives from './Creatives'
 import Funnels from './Funnels'
+import Tasks from './Tasks'
 import {
   CalendarDays,
   Clapperboard,
@@ -27,7 +28,7 @@ import {
   subscribeSharedStrategyState,
 } from './sharedStore'
 
-type Page = 'dashboard' | 'events' | 'campaigns' | 'funnels' | 'creatives' | 'products'
+type Page = 'dashboard' | 'events' | 'tasks' | 'campaigns' | 'funnels' | 'creatives' | 'products'
 type CalendarMode = 'month' | 'week' | 'day'
 
 type ProductType = 'digital' | 'live' | 'event'
@@ -210,7 +211,7 @@ function App() {
   const [page, setPage] = useState<Page>(() => {
     try {
       const saved = window.sessionStorage.getItem('strategy-current-page')
-      return saved && (['dashboard','events','campaigns','funnels','creatives','products'] as string[]).includes(saved) ? saved as Page : 'dashboard'
+      return saved && (['dashboard','events','tasks','campaigns','funnels','creatives','products'] as string[]).includes(saved) ? saved as Page : 'dashboard'
     } catch { return 'dashboard' }
   })
   useEffect(() => {
@@ -562,6 +563,7 @@ function App() {
             <CalendarDays size={19} />
             {!collapsed && <span>Eventos</span>}
           </button>
+          <button className={page === 'tasks' ? 'active' : ''} onClick={() => setPage('tasks')}><CheckSquare2 size={19}/>{!collapsed&&<span>Tarefas</span>}</button>
           <button
             className={page === 'campaigns' ? 'active' : ''}
             onClick={() => setPage('campaigns')}
@@ -599,6 +601,7 @@ function App() {
             <h1>
               {page === 'dashboard' && 'Calendário estratégico'}
               {page === 'events' && 'Eventos'}
+              {page === 'tasks' && 'Tarefas'}
               {page === 'campaigns' && 'Campanhas'}
               {page === 'funnels' && 'Funis de campanha'}
               {page === 'creatives' && 'Criativos'}
@@ -657,6 +660,7 @@ function App() {
         )}
 
         {page === 'funnels' && <Funnels campaigns={campaigns.map(c => ({ id:c.id, name:c.name }))} />}
+        {page === 'tasks' && <Tasks onOpenFunnel={id=>{window.sessionStorage.setItem('strategy-open-funnel',id);setPage('funnels')}} />}
         {page === 'creatives' && <Creatives campaigns={campaigns.map(c=>({id:c.id,name:c.name}))} />}
 
         {page === 'campaigns' && (
