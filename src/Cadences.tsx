@@ -1,0 +1,56 @@
+import {useEffect,useMemo,useState} from 'react'
+import {Plus,Copy,Trash2,CalendarDays,MessageSquareText} from 'lucide-react'
+import './cadences.css'
+type Stage={id:string;title:string;kind:string;dueDate?:string;livePlatform?:string}
+type Entry={id:string;title:string;goal:string;mode:'relative'|'fixed';offset:number;date:string;time:string;format:string;body:string;assetUrl:string;owner:string;resource:string;status:string}
+const STORE='strategy-cadence-whatsapp-v1'
+const categories=['Grupo WhatsApp','Vendas','Recuperação de formulário','Checkout abandonado','Venda X1']
+const formats=['Texto','Áudio','Vídeo','PDF','Enquete','Texto + PDF','Texto + vídeo','Link']
+const empty=():Entry=>({id:crypto.randomUUID(),title:'Nova mensagem',goal:'Aquecimento',mode:'relative',offset:-3,date:'',time:'09:00',format:'Texto',body:'',assetUrl:'',owner:'',resource:'WhatsApp',status:'Rascunho'})
+const model=()=>[
+ {title:'Boas-vindas ao grupo',offset:-14,goal:'Acolhimento',format:'Texto',body:'Boas-vindas! Em breve vamos compartilhar orientações e materiais para aproveitar nosso encontro.'},
+ {title:'Reflexão e enquete',offset:-10,goal:'Engajamento',format:'Enquete',body:'Qual é o maior desafio da sua empresa hoje?'},
+ {title:'Material de preparação',offset:-7,goal:'Nutrição',format:'Texto + PDF',body:'Preparamos um material para ajudar você a chegar ao encontro com mais clareza.'},
+ {title:'Vídeo de aquecimento',offset:-4,goal:'Autoridade',format:'Texto + vídeo',body:'Uma mensagem especial para você se preparar para nosso encontro.'},
+ {title:'Contagem regressiva',offset:-2,goal:'Antecipação',format:'Áudio',body:'Faltam dois dias! Separe suas principais dúvidas.'},
+ {title:'É amanhã',offset:-1,goal:'Lembrete',format:'Texto',body:'É amanhã! Confira o horário e reserve esse momento na agenda.'},
+ {title:'Estamos ao vivo',offset:0,goal:'Presença',format:'Link',body:'É hoje! Acesse a transmissão pelo link oficial.'},
+ {title:'Resumo e próximo passo',offset:1,goal:'Pós-evento',format:'Texto',body:'Obrigado por participar! Aqui está o próximo passo da nossa jornada.'}
+].map(m=>({...empty(),...m,id:crypto.randomUUID(),status:'Rascunho'}))
+function read(id:string):Entry[]{try{const all=JSON.parse(localStorage.getItem(STORE)||'{}');return Array.isArray(all[id])?all[id]:[]}catch{return []}}
+function isoPlus(iso:string,days:number){if(!iso)return '';const date=new Date(iso+'T12:00:00');date.setDate(date.getDate()+days);return [date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-')}
+function pretty(date:string){if(!date)return 'Sem data';const p=date.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:'Sem data'}
+export default function Cadences({funnelId,stages}:{funnelId:string;stages:Stage[]}){
+ const [category,setCategory]=useState('Grupo WhatsApp')
+ const [entries,setEntries]=useState<Entry[]>(()=>read(funnelId))
+ const [reference,setReference]=useState('')
+ const [date,setDate]=useState('')
+ const [view,setView]=useState<'timeline'|'calendar'|'list'>('timeline')
+ const [selected,setSelected]=useState<string|null>(null)
+ const [month,setMonth]=useState(()=>new Date().toISOString().slice(0,7))
+ useEffect(()=>{setEntries(read(funnelId));setSelected(null)},[funnelId])
+ useEffect(()=>{try{const all=JSON.parse(localStorage.getItem(STORE)||'{}');all[funnelId]=entries;localStorage.setItem(STORE,JSON.stringify(all))}catch(err){console.error('Falha ao salvar cadência',err)}},[entries,funnelId])
+ const liveStages=stages.filter(s=>s.kind==='Live'||s.kind==='Live semanal')
+ const refStage=stages.find(s=>s.id===reference)
+ const refDate=refStage?.dueDate||date
+ const resolved=(m:Entry)=>m.mode==='fixed'?m.date:isoPlus(refDate,m.offset)
+ const sorted=useMemo(()=>[...entries].sort((a,b)=>(resolved(a)||'9999').localeCompare(resolved(b)||'9999')||a.time.localeCompare(b.time)),[entries,refDate])
+ const current=entries.find(e=>e.id===selected)
+ const change=(id:string,patch:Partial<Entry>)=>setEntries(old=>old.map(e=>e.id===id?{...e,...patch}:e))
+ const create=()=>{const e=empty();setEntries(old=>[...old,e]);setSelected(e.id)}
+ const days=useMemo(()=>{const [y,m]=month.split('-').map(Number);const first=new Date(y,m-1,1);const offset=first.getDay();return Array.from({length:42},(_,i)=>{const day=new Date(y,m-1,i-offset+1);return [day.getFullYear(),String(day.getMonth()+1).padStart(2,'0'),String(day.getDate()).padStart(2,'0')].join('-')})},[month])
+ return <section className="cd-root">
+ <div className="cd-head"><div><h3>Cadências de mensagens</h3><p>Planeje o aquecimento, os lembretes e o acompanhamento da comunidade.</p></div><button className="primary-button" onClick={create}><Plus size={16}/> Nova mensagem</button></div>
+ <div className="cd-categories">{categories.map(c=><button key={c} className={c===category?'active':''} onClick={()=>setCategory(c)}>{c}</button>)}</div>
+ {category!=='Grupo WhatsApp'?<div className="cd-empty"><MessageSquareText size={30}/><h3>{category}</h3><p>Categoria reservada para a próxima etapa. Nesta versão vamos organizar primeiro as mensagens do grupo de WhatsApp.</p></div>:<>
+ <div className="cd-toolbar"><label>Evento / live de referência<select value={reference} onChange={e=>setReference(e.target.value)}><option value="">Data manual</option>{liveStages.map(s=><option key={s.id} value={s.id}>{s.title}{s.dueDate?' · '+pretty(s.dueDate):''}</option>)}</select></label><label>Data da transmissão<input type="date" value={refDate} disabled={!!reference&&!!refStage?.dueDate} onChange={e=>setDate(e.target.value)}/></label><div className="cd-view">{(['timeline','calendar','list'] as const).map(v=><button key={v} className={view===v?'active':''} onClick={()=>setView(v)}>{v==='timeline'?'Sequência':v==='calendar'?'Calendário':'Lista'}</button>)}</div></div>
+ {!refDate&&<p className="cd-warning">Selecione a data do evento para calcular mensagens relativas, como D-7 e D-1.</p>}
+ {entries.length===0?<div className="cd-empty"><CalendarDays size={29}/><h3>Comece sua cadência do grupo</h3><p>Cadastre mensagens individualmente ou carregue uma sequência de aquecimento editável.</p><button className="secondary-button" onClick={()=>setEntries(model())}>Aplicar modelo de aquecimento</button></div>:<>
+ <div className="cd-summary"><span>{entries.length} mensagens planejadas</span><span>{entries.filter(e=>e.status==='Enviado').length} enviadas</span><button className="secondary-button" onClick={()=>setEntries(old=>[...old,...model()])}>Adicionar modelo</button></div>
+ {view==='calendar'?<div className="cd-calendar"><div className="cd-month"><button onClick={()=>{const d=new Date(month+'-15');d.setMonth(d.getMonth()-1);setMonth(d.toISOString().slice(0,7))}}>‹</button><strong>{month}</strong><button onClick={()=>{const d=new Date(month+'-15');d.setMonth(d.getMonth()+1);setMonth(d.toISOString().slice(0,7))}}>›</button></div><div className="cd-calendar-grid">{['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(w=><strong key={w}>{w}</strong>)}{days.map(d=><div key={d} className={d.slice(0,7)===month?'':'other'}><small>{Number(d.slice(-2))}</small>{sorted.filter(e=>resolved(e)===d).map(e=><button key={e.id} onClick={()=>setSelected(e.id)}>{e.time} {e.title}</button>)}</div>)}</div></div>:<div className={view==='list'?'cd-list':'cd-timeline'}>{sorted.map((e,i)=><button className="cd-entry" key={e.id} onClick={()=>setSelected(e.id)}><div className="cd-number">{i+1}</div><div className="cd-entry-main"><div className="cd-entry-top"><strong>{e.title}</strong><span>{e.mode==='relative'?(e.offset>=0?'D+':'D')+e.offset:'Data fixa'}</span></div><p>{e.goal} · {e.format} · {e.status}</p><small>{pretty(resolved(e))} · {e.time} {e.owner?'· '+e.owner:''}</small></div></button>)}</div>}
+ </>}
+ {current&&<div className="cd-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setSelected(null)}}><div className="cd-editor" role="dialog" aria-modal="true"><div className="cd-editor-head"><h3>Editar mensagem</h3><button onClick={()=>setSelected(null)}>×</button></div><div className="cd-editor-body"><label>Título<input value={current.title} onChange={e=>change(current.id,{title:e.target.value})}/></label><label>Objetivo<input value={current.goal} onChange={e=>change(current.id,{goal:e.target.value})}/></label><div className="cd-pair"><label>Agendamento<select value={current.mode} onChange={e=>change(current.id,{mode:e.target.value as Entry['mode']})}><option value="relative">Relativo ao evento</option><option value="fixed">Data fixa</option></select></label>{current.mode==='relative'?<label>Deslocamento (dias)<input type="number" value={current.offset} onChange={e=>change(current.id,{offset:Number(e.target.value)})}/></label>:<label>Data<input type="date" value={current.date} onChange={e=>change(current.id,{date:e.target.value})}/></label>}</div><div className="cd-pair"><label>Horário<input type="time" value={current.time} onChange={e=>change(current.id,{time:e.target.value})}/></label><label>Formato<select value={current.format} onChange={e=>change(current.id,{format:e.target.value})}>{formats.map(f=><option key={f}>{f}</option>)}</select></label></div><label>Mensagem<textarea rows={8} value={current.body} onChange={e=>change(current.id,{body:e.target.value})}/></label><label>Link do material (vídeo, áudio, PDF ou acesso)<input type="url" value={current.assetUrl} onChange={e=>change(current.id,{assetUrl:e.target.value})} placeholder="https://..."/></label><div className="cd-pair"><label>Responsável<input value={current.owner} onChange={e=>change(current.id,{owner:e.target.value})}/></label><label>Ferramenta<input value={current.resource} onChange={e=>change(current.id,{resource:e.target.value})}/></label></div><label>Status<select value={current.status} onChange={e=>change(current.id,{status:e.target.value})}>{['Rascunho','Pronto','Aguardando envio','Enviado','Cancelado'].map(x=><option key={x}>{x}</option>)}</select></label></div><div className="cd-editor-actions"><button className="cd-delete" onClick={()=>{setEntries(old=>old.filter(e=>e.id!==current.id));setSelected(null)}}><Trash2 size={15}/> Excluir</button><button className="secondary-button" onClick={()=>{setEntries(old=>[...old,{...current,id:crypto.randomUUID(),title:current.title+' (cópia)'}]);setSelected(null)}}><Copy size={15}/> Duplicar</button><button className="primary-button" onClick={()=>setSelected(null)}>Concluir</button></div></div></div>}
+ <p className="cd-note">Planejamento salvo neste navegador; nenhum envio é realizado automaticamente.</p>
+ </>}
+ </section>
+}
