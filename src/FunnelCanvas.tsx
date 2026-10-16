@@ -4,7 +4,7 @@ import { ReactFlow, Background, Controls, MiniMap, Handle, Position, ConnectionM
 import '@xyflow/react/dist/style.css'
 import { GitBranch, MessageSquareText, UserRound, Video, Megaphone, FileText, ClipboardList, CreditCard, BadgeCheck, RefreshCw, Search, Users, UserX, CircleHelp, ChartNoAxesCombined, MessageCircle, Bell, ShoppingCart, MousePointerClick, Mail, CalendarDays, LayoutTemplate } from 'lucide-react'
 
-export type CanvasStep = { id:string; title:string; detail:string; kind:string; color:string; messages:{id:string}[]; owner?:string; status?:string; livePlatform?:string; position?:{x:number;y:number} }
+export type CanvasStep = { id:string; title:string; detail:string; kind:string; color:string; messages:{id:string}[]; owner?:string; executionType?:string; resource?:string; status?:string; livePlatform?:string; position?:{x:number;y:number} }
 export type CanvasLink = { id:string; source:string; target:string; label?:string; sourceHandle?:string|null; targetHandle?:string|null }
 function MetaBrandIcon(){return <span className="fc-stage-brand fc-meta" title="Meta Ads"><svg viewBox="0 0 32 32" width="23" height="23" fill="none" aria-hidden="true"><path d="M4 20c1.3-7 4.5-11 8.2-11 3.2 0 5.6 4.2 8.3 9.2 1.2 2.2 2.2 4.1 3.6 4.1 1.7 0 2.5-2.3 2.5-5.5 0-3.1-.9-5.1-2.8-5.1-2.7 0-5.1 3.8-7.5 8.1-2.4 4.4-4.8 7.8-7.8 7.8C4.4 27.6 2 24.5 4 20Z" stroke="white" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"/></svg></span>}
 function WhatsAppBrandIcon(){return <span className="fc-stage-brand fc-whatsapp" title="WhatsApp"><svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true"><path d="M16 4.2a11.7 11.7 0 0 0-10 17.8l-1.7 5.7 5.9-1.6a11.7 11.7 0 1 0 5.8-21.9Z" stroke="white" strokeWidth="2.3" fill="none" strokeLinejoin="round"/><path fill="white" d="M11.2 10.1c-.5.1-1.5 1.5-1.5 3.1 0 2 2.6 5.2 4.1 6.4 1.6 1.3 4.3 2.9 6.5 2.6 1.6-.2 2.6-1.7 2.6-2.7 0-.4-2.8-1.6-3.1-1.6-.3 0-1.1 1.4-1.5 1.4-.6 0-3.6-2.2-4.1-3-.3-.5 1.1-1.2 1-1.7-.1-.5-1.2-3-1.7-3.1Z"/></svg></span>}
@@ -24,12 +24,12 @@ function StageIcon({kind,platform,color}:{kind:string;platform?:string;color:str
  return <span className="fc-stage-brand" style={{background:color}}><Icon size={18} strokeWidth={2.3}/></span>
 }
 function StageNode({data,selected}:NodeProps) {
- const s=data as { title:string; detail:string; kind:string; color:string; owner?:string; status?:string; count:number; index:number; livePlatform?:string }
+ const s=data as { title:string; detail:string; kind:string; color:string; owner?:string; executionType?:string; resource?:string; status?:string; count:number; index:number; livePlatform?:string }
  return <div className={'fc-node '+(selected?'fc-selected':'')} style={{borderTopColor:s.color}}>
   <FlowHandle id="input" type="source" position={Position.Left} className="fc-handle" isConnectable={true}/>
   <div className="fc-node-meta"><StageIcon kind={s.kind} platform={s.livePlatform} color={s.color}/><span>{s.kind}</span></div>
   <strong>{s.title}</strong><p>{s.detail}</p>
-  <div className="fc-node-footer"><span><MessageSquareText size={13}/> {s.count}</span><span><UserRound size={13}/> {s.owner||'Sem responsável'}</span></div>
+  <div className="fc-node-footer"><span><MessageSquareText size={13}/> {s.count}</span><span><UserRound size={13}/> {s.owner||'Sem responsável'}</span></div>{(s.resource||s.executionType)&&<div className="fc-node-execution">{s.executionType||'Humano'}{s.resource?' · '+s.resource:''}</div>}
   <div className="fc-node-status">{s.status||'Planejada'}</div>
   <FlowHandle id="output" type="source" position={Position.Right} className="fc-handle" isConnectable={true}/>
   <FlowHandle id="top" type="source" position={Position.Top} className="fc-handle" isConnectable={true}/>
@@ -54,7 +54,7 @@ const FlowMiniMap = MiniMap as unknown as ComponentType<Record<string, unknown>>
 const FlowControls = Controls as unknown as ComponentType<Record<string, unknown>>
 const FlowHandle = Handle as unknown as ComponentType<Record<string, unknown>>
 export default function FunnelCanvas({steps,links,onChange,onSelect,activeId,fullscreen,onDelete}:{steps:CanvasStep[];links:CanvasLink[];onChange:(steps:CanvasStep[],links:CanvasLink[])=>void;onSelect:(id:string)=>void;onDelete:(id:string)=>void;activeId:string|null;fullscreen:boolean}){
- const initialNodes=useMemo<Node[]>(()=>steps.map((s,i)=>({id:s.id,type:'stage',position:s.position||{x:70+(i%4)*325,y:80+Math.floor(i/4)*255},selected:s.id===activeId,data:{title:s.title,detail:s.detail,kind:s.kind,color:s.color,owner:s.owner,status:s.status,count:s.messages.length,index:i+1,livePlatform:s.livePlatform}})),[steps,activeId])
+ const initialNodes=useMemo<Node[]>(()=>steps.map((s,i)=>({id:s.id,type:'stage',position:s.position||{x:70+(i%4)*325,y:80+Math.floor(i/4)*255},selected:s.id===activeId,data:{title:s.title,detail:s.detail,kind:s.kind,color:s.color,owner:s.owner,executionType:s.executionType,resource:s.resource,status:s.status,count:s.messages.length,index:i+1,livePlatform:s.livePlatform}})),[steps,activeId])
  const [nodes,setNodes]=useState<Node[]>(initialNodes)
  const nodesRef=useRef<Node[]>(initialNodes)
  const [selectionModifier,setSelectionModifier]=useState(false)
