@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronUp, Copy, GitBranch, MessageSquareText, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import './funnels.css'
 import {createChecklist,type ChecklistItem} from './checklistTemplates'
@@ -60,6 +60,8 @@ export default function Funnels({ campaigns }: { campaigns: Campaign[] }) {
   const [activeStep, setActiveStep] = useState<string | null>(null)
   const [checklistStep,setChecklistStep] = useState<string|null>(null)
   const [newChecklistItem,setNewChecklistItem] = useState('')
+  const openChecklist=useCallback((id:string)=>{setChecklistStep(id);setNewChecklistItem('');setEditingCheck(null)},[])
+  const openSettings=useCallback((id:string)=>{setActiveStep(id);setChecklistStep(null);setMessageId(null);setModelMenuOpen(false)},[])
   const [editingCheck,setEditingCheck] = useState<string|null>(null)
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState(false)
@@ -171,7 +173,7 @@ export default function Funnels({ campaigns }: { campaigns: Campaign[] }) {
       <div className="fn-workspace">
        <div className="fn-map"><div className="fn-section-head"><div><h3>Mapa visual do funil</h3><p>Organize os blocos, conecte ramificações e defina o responsável por cada etapa.</p></div><div className="fn-toolbar"><button className="secondary-button" title="Desfazer (⌘Z / Ctrl+Z)" disabled={!selected||!(undoStack.current[selected]?.length)} onClick={undo}>↶ Desfazer</button><button className="secondary-button" title="Refazer (⌘⇧Z / Ctrl+Shift+Z)" disabled={!selected||!(redoStack.current[selected]?.length)} onClick={redo}>↷ Refazer</button><button className="secondary-button" onClick={()=>setFullscreen(v=>!v)}>{fullscreen?'Sair da tela cheia':'Expandir mapa'}</button><button className="secondary-button" onClick={()=>setTemplatesOpen(v=>!v)}>Catálogo de modelos</button><button className="primary-button" onClick={()=>insertStep()}><Plus size={16}/> Nova etapa</button></div></div>
        {templatesOpen&&<div className="fn-templates">{templates.map(t=><button key={t.title} onClick={()=>insertStep(t)}><span style={{background:t.color}}/>{t.title}<Plus size={14}/></button>)}</div>}
-       <FunnelCanvas steps={funnel.steps} links={funnel.links||funnel.steps.slice(1).map((s,i)=>({id:'legacy-'+s.id,source:funnel.steps[i].id,target:s.id}))} activeId={activeStep} onSelect={id=>{setChecklistStep(id);setNewChecklistItem('');setEditingCheck(null)}} onConfigure={id=>{setActiveStep(id);setChecklistStep(null);setMessageId(null);setModelMenuOpen(false)}} onChange={updateMap} onDelete={deleteCanvasStep} fullscreen={fullscreen}/>
+       <FunnelCanvas steps={funnel.steps} links={funnel.links||funnel.steps.slice(1).map((s,i)=>({id:'legacy-'+s.id,source:funnel.steps[i].id,target:s.id}))} activeId={activeStep} onSelect={openChecklist} onConfigure={openSettings} onChange={updateMap} onDelete={deleteCanvasStep} fullscreen={fullscreen}/>
        </div>
        {step&&<aside className="fn-inspector"><div className="fn-inspector-header"><div><span className="fn-kicker">CONFIGURAÇÃO DA ETAPA</span><h3>{step.title}</h3></div><button className="fn-icon" title="Fechar" onClick={()=>{setActiveStep(null);setMessageId(null)}}><X size={18}/></button></div>
          <label>Nome da etapa<input value={step.title} onChange={e=>patchStep(s=>({...s,title:e.target.value}))}/></label>
