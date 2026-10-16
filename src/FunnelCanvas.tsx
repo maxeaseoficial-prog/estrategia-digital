@@ -2,9 +2,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react'
 import { ReactFlow, Background, Controls, MiniMap, Handle, Position, ConnectionMode, BaseEdge, getStraightPath, getSmoothStepPath, type Connection, type Edge, type Node, type NodeProps, type OnNodesChange, applyNodeChanges } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
+import {createChecklist,type ChecklistItem} from './checklistTemplates'
 import { GitBranch, MessageSquareText, UserRound, Video, Megaphone, FileText, ClipboardList, CreditCard, BadgeCheck, RefreshCw, Search, Users, UserX, CircleHelp, ChartNoAxesCombined, MessageCircle, Bell, ShoppingCart, MousePointerClick, Mail, CalendarDays, LayoutTemplate, Settings2 } from 'lucide-react'
 
-export type CanvasStep = { id:string; title:string; detail:string; kind:string; color:string; messages:{id:string}[]; owner?:string; executionType?:string; resource?:string; status?:string; livePlatform?:string; position?:{x:number;y:number} }
+export type CanvasStep = { id:string; title:string; detail:string; kind:string; color:string; messages:{id:string}[]; checklist?:ChecklistItem[]; owner?:string; executionType?:string; resource?:string; status?:string; livePlatform?:string; position?:{x:number;y:number} }
 export type CanvasLink = { id:string; source:string; target:string; label?:string; sourceHandle?:string|null; targetHandle?:string|null }
 function MetaBrandIcon(){return <span className="fc-stage-brand fc-meta" title="Meta Ads"><svg viewBox="0 0 32 32" width="23" height="23" fill="none" aria-hidden="true"><path d="M4 20c1.3-7 4.5-11 8.2-11 3.2 0 5.6 4.2 8.3 9.2 1.2 2.2 2.2 4.1 3.6 4.1 1.7 0 2.5-2.3 2.5-5.5 0-3.1-.9-5.1-2.8-5.1-2.7 0-5.1 3.8-7.5 8.1-2.4 4.4-4.8 7.8-7.8 7.8C4.4 27.6 2 24.5 4 20Z" stroke="white" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"/></svg></span>}
 function WhatsAppBrandIcon(){return <span className="fc-stage-brand fc-whatsapp" title="WhatsApp"><svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true"><path d="M16 4.2a11.7 11.7 0 0 0-10 17.8l-1.7 5.7 5.9-1.6a11.7 11.7 0 1 0 5.8-21.9Z" stroke="white" strokeWidth="2.3" fill="none" strokeLinejoin="round"/><path fill="white" d="M11.2 10.1c-.5.1-1.5 1.5-1.5 3.1 0 2 2.6 5.2 4.1 6.4 1.6 1.3 4.3 2.9 6.5 2.6 1.6-.2 2.6-1.7 2.6-2.7 0-.4-2.8-1.6-3.1-1.6-.3 0-1.1 1.4-1.5 1.4-.6 0-3.6-2.2-4.1-3-.3-.5 1.1-1.2 1-1.7-.1-.5-1.2-3-1.7-3.1Z"/></svg></span>}
@@ -24,13 +25,14 @@ function StageIcon({kind,platform,color}:{kind:string;platform?:string;color:str
  return <span className="fc-stage-brand" style={{background:color}}><Icon size={18} strokeWidth={2.3}/></span>
 }
 function StageNode({data,selected,id}:NodeProps) {
- const s=data as { title:string; detail:string; kind:string; color:string; owner?:string; executionType?:string; resource?:string; status?:string; count:number; index:number; livePlatform?:string }
- return <div className={'fc-node '+(selected?'fc-selected':'')} style={{borderTopColor:s.color}}>
+ const s=data as { title:string; detail:string; kind:string; color:string; owner?:string; executionType?:string; resource?:string; status?:string; count:number; index:number; livePlatform?:string;checkDone:number;checkTotal:number }
+ const progress=s.checkTotal>0&&s.checkDone===s.checkTotal?'complete':s.checkDone>0?'partial':'blank'
+ return <div className={'fc-node fc-progress-'+progress+' '+(selected?'fc-selected':'')} style={{borderTopColor:s.color}}>
   <FlowHandle id="input" type="source" position={Position.Left} className="fc-handle" isConnectable={true}/>
   <div className="fc-node-meta"><StageIcon kind={s.kind} platform={s.livePlatform} color={s.color}/><span>{s.kind}</span></div>
   <div className="fc-title-row"><strong>{s.title}</strong><button className="fc-config-button nodrag" type="button" title="Configurações da etapa" onClick={event=>{event.stopPropagation();(s.onConfigure as ((id:string)=>void)|undefined)?.(id)}}><Settings2 size={15}/></button></div><p>{s.detail}</p>
   <div className="fc-node-footer"><span><MessageSquareText size={13}/> {s.count}</span><span><UserRound size={13}/> {s.owner||'Sem responsável'}</span></div>{(s.resource||s.executionType)&&<div className="fc-node-execution">{s.executionType||'Humano'}{s.resource?' · '+s.resource:''}</div>}
-  <div className="fc-node-status">{s.status||'Planejada'}</div>
+  <div className="fc-node-bottom"><div className="fc-node-status">{s.status||'Planejada'}</div><span className="fc-check-count">{s.checkDone}/{s.checkTotal} checks</span></div>
   <FlowHandle id="output" type="source" position={Position.Right} className="fc-handle" isConnectable={true}/>
   <FlowHandle id="top" type="source" position={Position.Top} className="fc-handle" isConnectable={true}/>
   <FlowHandle id="bottom" type="source" position={Position.Bottom} className="fc-handle" isConnectable={true}/>
@@ -54,7 +56,7 @@ const FlowMiniMap = MiniMap as unknown as ComponentType<Record<string, unknown>>
 const FlowControls = Controls as unknown as ComponentType<Record<string, unknown>>
 const FlowHandle = Handle as unknown as ComponentType<Record<string, unknown>>
 export default function FunnelCanvas({steps,links,onChange,onSelect,activeId,fullscreen,onDelete,onConfigure}:{steps:CanvasStep[];links:CanvasLink[];onChange:(steps:CanvasStep[],links:CanvasLink[])=>void;onSelect:(id:string)=>void;onDelete:(id:string)=>void;onConfigure:(id:string)=>void;activeId:string|null;fullscreen:boolean}){
- const initialNodes=useMemo<Node[]>(()=>steps.map((s,i)=>({id:s.id,type:'stage',position:s.position||{x:70+(i%4)*325,y:80+Math.floor(i/4)*255},selected:s.id===activeId,data:{title:s.title,detail:s.detail,kind:s.kind,color:s.color,owner:s.owner,executionType:s.executionType,resource:s.resource,status:s.status,count:s.messages.length,index:i+1,livePlatform:s.livePlatform,onConfigure}})),[steps,activeId,onConfigure])
+ const initialNodes=useMemo<Node[]>(()=>steps.map((s,i)=>({id:s.id,type:'stage',position:s.position||{x:70+(i%4)*325,y:80+Math.floor(i/4)*255},selected:s.id===activeId,data:{title:s.title,detail:s.detail,kind:s.kind,color:s.color,owner:s.owner,executionType:s.executionType,resource:s.resource,status:s.status,count:s.messages.length,index:i+1,livePlatform:s.livePlatform,checkTotal:(s.checklist||createChecklist(s.kind)).length,checkDone:(s.checklist||createChecklist(s.kind)).filter(check=>check.done).length,onConfigure}})),[steps,activeId,onConfigure])
  const [nodes,setNodes]=useState<Node[]>(initialNodes)
  const nodesRef=useRef<Node[]>(initialNodes)
  const [selectionModifier,setSelectionModifier]=useState(false)
