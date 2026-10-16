@@ -32,7 +32,16 @@ export default function Tasks({onOpenFunnel}:{onOpenFunnel:(id:string)=>void}){
  const all=tasks.length,done=tasks.filter(t=>t.item.done).length,pending=all-done
  const urgent=tasks.filter(t=>!t.item.done&&t.days<=2).length
  const visible=tasks.filter(t=>(!chosen||t.funnelId===chosen)&&(filter==='all'||filter==='completed'&&t.item.done||filter==='pending'&&!t.item.done||filter==='urgent'&&!t.item.done&&t.days<=2)&&[t.item.title,t.step.title,t.funnelName,t.step.owner||''].join(' ').toLowerCase().includes(search.toLowerCase()))
- const toggle=(task:Task,checked:boolean)=>{setFunnels(previous=>{const next=previous.map(f=>f.id!==task.funnelId?f:{...f,steps:f.steps.map(s=>{if(s.id!==task.step.id)return s;const checks=s.checklist||createChecklist(s.kind);const match=s.checklist?task.item.id:null;return {...s,checklist:checks.map((c,i)=>((match?c.id===match:c.title===task.item.title)?{...c,done:checked}:c))}})});try{localStorage.setItem(STORE,JSON.stringify(next));window.dispatchEvent(new Event('strategy-funnels-updated'))}catch{}return next})}
+ const toggle=(task:Task,checked:boolean)=>{
+  const latest=read()
+  const next=latest.map(f=>f.id!==task.funnelId?f:{...f,steps:f.steps.map(stage=>{
+   if(stage.id!==task.step.id)return stage
+   const checks=stage.checklist||createChecklist(stage.kind)
+   return {...stage,checklist:checks.map(c=>c.id===task.item.id||(!stage.checklist&&c.title===task.item.title)?{...c,done:checked}:c)}
+  })})
+  try{localStorage.setItem(STORE,JSON.stringify(next));setFunnels(next);window.dispatchEvent(new Event('strategy-funnels-updated'))}
+  catch{setFunnels(next)}
+ }
  const dateLabel=(t:Task)=>!t.due?'Sem prazo':t.days<0?'Atrasada '+Math.abs(t.days)+'d':t.days===0?'Hoje':t.days===1?'Amanhã':'Em '+t.days+'d'
  return <section className="tk-root"><div className="tk-head"><div><span className="tk-kicker">CENTRAL DE EXECUÇÃO</span><h2>Tarefas</h2><p>Checklists dos funis, priorizados por prazo e prontidão para os eventos.</p></div><button className="secondary-button" onClick={()=>{setFunnels(read());setToday(iso(new Date()))}}><RefreshCw size={15}/> Atualizar</button></div>
  <div className="tk-stats">{[['Tarefas pendentes',pending],['Urgentes / atrasadas',urgent],['Concluídas',done],['Progresso',all?Math.round(done/all*100)+'%':'0%']].map(([name,value])=><div key={name}><small>{name}</small><strong>{value}</strong></div>)}</div>
