@@ -2,6 +2,7 @@ import {useEffect,useMemo,useState} from 'react'
 import {CheckCircle2,ClipboardList,CalendarClock,AlertTriangle,Search,ArrowRight,RefreshCw} from 'lucide-react'
 import {createChecklist,type ChecklistItem} from './checklistTemplates'
 import './tasks.css'
+import ProtocolTasks from './ProtocolTasks'
 type Stage={id:string;title:string;kind:string;owner?:string;dueDate?:string;checklist?:ChecklistItem[]}
 type Funnel={id:string;name:string;steps:Stage[];status?:string}
 type Task={funnelId:string;funnelName:string;step:Stage;item:ChecklistItem;due:string;inferred:boolean;days:number;score:number}
@@ -21,7 +22,7 @@ const calc=(all:Funnel[],today:string):Task[]=>all.flatMap(f=>{
   return items.map(item=>({funnelId:f.id,funnelName:f.name,step,item,due,inferred:!step.dueDate&&!!recommended,days,score:item.done?999:days<0?0:days===0?1:days<=2?2:days<=7?3:days<999?4:5}))
  })
 }).sort((a,b)=>a.score-b.score||a.days-b.days||a.funnelName.localeCompare(b.funnelName))
-export default function Tasks({onOpenFunnel}:{onOpenFunnel:(id:string)=>void}){
+export default function Tasks({onOpenFunnel,onOpenProtocol}:{onOpenFunnel:(id:string)=>void;onOpenProtocol:()=>void}){
  const [funnels,setFunnels]=useState<Funnel[]>(read)
  const [filter,setFilter]=useState('pending')
  const [search,setSearch]=useState('')
@@ -48,6 +49,7 @@ export default function Tasks({onOpenFunnel}:{onOpenFunnel:(id:string)=>void}){
  <div className="tk-toolbar"><div className="tk-search"><Search size={16}/><input placeholder="Buscar tarefa, etapa ou responsável" value={search} onChange={e=>setSearch(e.target.value)}/></div><select value={chosen} onChange={e=>setChosen(e.target.value)}><option value="">Todos os funis</option>{funnels.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select><div className="tk-filters">{[['pending','Pendentes'],['urgent','Urgentes'],['completed','Concluídas'],['all','Todas']].map(([key,name])=><button key={key} className={filter===key?'active':''} onClick={()=>setFilter(key)}>{name}</button>)}</div></div>
  <div className="tk-context"><CalendarClock size={18}/><div><strong>Planejamento inteligente</strong><p>Prazos informados nos cards têm prioridade. Se uma live ou evento tiver data, as etapas sem prazo recebem uma <b>data sugerida</b> baseada no tipo de atividade. Datas recomendadas não sobrescrevem os cards.</p></div></div>
  {visible.length===0?<div className="tk-empty"><CheckCircle2 size={28}/><strong>Nenhuma tarefa nesta visualização</strong><p>Cadastre etapas e checklists nos funis para começar.</p></div>:<div className="tk-list">{visible.map(t=><div className="tk-item" key={t.funnelId+':'+t.step.id+':'+t.item.id}><input type="checkbox" checked={t.item.done} onChange={e=>toggle(t,e.target.checked)} aria-label={'Concluir '+t.item.title}/><div className="tk-task"><strong className={t.item.done?'completed':''}>{t.item.title}</strong><small>{t.funnelName} <span>·</span> {t.step.title} <span>·</span> {t.step.owner||'Sem responsável'}</small></div><div className="tk-due"><span className={!t.item.done&&t.days<=2?'urgent':''}>{!t.item.done&&t.days<=2?<AlertTriangle size={13}/>:null}{dateLabel(t)}</span>{t.inferred&&<small>Data sugerida: {t.due.split('-').reverse().join('/')}</small>}{!t.inferred&&t.due&&<small>Prazo: {t.due.split('-').reverse().join('/')}</small>}</div><button className="tk-open" onClick={()=>onOpenFunnel(t.funnelId)} title="Abrir funil"><ArrowRight size={17}/></button></div>)}</div>}
+ <ProtocolTasks onOpen={onOpenProtocol}/>
  <p className="tk-note">As marcações são compartilhadas com o checklist do funil neste navegador. O sistema apenas sugere prioridades; não agenda tarefas nem envia mensagens automaticamente.</p>
  </section>
 }
