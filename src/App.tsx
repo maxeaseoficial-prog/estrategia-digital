@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import Creatives from './Creatives'
 import Funnels from './Funnels'
 import Tasks from './Tasks'
+import EventProtocol from './EventProtocol'
 import {
   CalendarDays,
   Clapperboard,
@@ -12,6 +13,7 @@ import {
   LayoutDashboard,
   Megaphone,
   Package2,
+  BookOpen,
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
@@ -28,7 +30,7 @@ import {
   subscribeSharedStrategyState,
 } from './sharedStore'
 
-type Page = 'dashboard' | 'events' | 'tasks' | 'campaigns' | 'funnels' | 'creatives' | 'products'
+type Page = 'dashboard' | 'events' | 'tasks' | 'campaigns' | 'funnels' | 'creatives' | 'products' | 'protocol'
 type CalendarMode = 'month' | 'week' | 'day'
 
 type ProductType = 'digital' | 'live' | 'event'
@@ -211,7 +213,7 @@ function App() {
   const [page, setPage] = useState<Page>(() => {
     try {
       const saved = window.sessionStorage.getItem('strategy-current-page')
-      return saved && (['dashboard','events','tasks','campaigns','funnels','creatives','products'] as string[]).includes(saved) ? saved as Page : 'dashboard'
+      return saved && (['dashboard','events','tasks','campaigns','funnels','creatives','products','protocol'] as string[]).includes(saved) ? saved as Page : 'dashboard'
     } catch { return 'dashboard' }
   })
   useEffect(() => {
@@ -580,6 +582,7 @@ function App() {
             <Package2 size={19} />
             {!collapsed && <span>Produtos</span>}
           </button>
+          <button className={page === 'protocol' ? 'active' : ''} onClick={() => setPage('protocol')}><BookOpen size={19}/>{!collapsed&&<span>Protocolo</span>}</button>
         </nav>
 
         {!collapsed && (
@@ -602,6 +605,7 @@ function App() {
               {page === 'dashboard' && 'Calendário estratégico'}
               {page === 'events' && 'Eventos'}
               {page === 'tasks' && 'Tarefas'}
+              {page === 'protocol' && 'Protocolo'}
               {page === 'campaigns' && 'Campanhas'}
               {page === 'funnels' && 'Funis de campanha'}
               {page === 'creatives' && 'Criativos'}
@@ -660,6 +664,7 @@ function App() {
         )}
 
         {page === 'funnels' && <Funnels campaigns={campaigns.map(c => ({ id:c.id, name:c.name }))} />}
+        {page === 'protocol' && <EventProtocol events={events.map(e=>({id:e.id,name:e.name,date:e.date,time:e.time,location:e.location,description:e.description}))} />}
         {page === 'tasks' && <Tasks onOpenFunnel={id=>{window.sessionStorage.setItem('strategy-open-funnel',id);setPage('funnels')}} />}
         {page === 'creatives' && <Creatives campaigns={campaigns.map(c=>({id:c.id,name:c.name}))} />}
 
