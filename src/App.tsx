@@ -667,7 +667,7 @@ function App() {
 
         {page === 'funnels' && <Funnels campaigns={campaigns.map(c => ({ id:c.id, name:c.name }))} />}
         {page === 'protocol' && <EventProtocol events={events.map(e=>({id:e.id,name:e.name,date:e.date,time:e.time,location:e.location,description:e.description,eventType:e.eventType}))} />}
-        {page === 'tasks' && <Tasks onOpenFunnel={id=>{window.sessionStorage.setItem('strategy-open-funnel',id);setPage('funnels')}} />}
+        {page === 'tasks' && <Tasks onOpenProtocol={()=>setPage('protocol')} onOpenFunnel={id=>{window.sessionStorage.setItem('strategy-open-funnel',id);setPage('funnels')}} />}
         {page === 'creatives' && <Creatives campaigns={campaigns.map(c=>({id:c.id,name:c.name}))} />}
 
         {page === 'campaigns' && (
