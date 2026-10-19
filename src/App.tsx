@@ -53,6 +53,7 @@ type ProductItem = {
 
 type EventItem = {
   id: string
+  eventType?: 'presencial' | 'online'
   name: string
   date: string
   time: string
@@ -1861,6 +1862,13 @@ function EventModal({
             value={form.time}
             onChange={(event) => setForm({ ...form, time: event.target.value })}
           />
+        </label>
+        <label>
+          Formato do evento
+          <select value={form.eventType||'online'} onChange={(event) => setForm({...form,eventType:event.target.value as 'online' | 'presencial'})}>
+            <option value="online">Online / Live</option>
+            <option value="presencial">Presencial</option>
+          </select>
         </label>
         <label className="full">
           Local
