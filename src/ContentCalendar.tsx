@@ -16,7 +16,7 @@ export default function ContentCalendar(){
  const [focus,setFocus]=useState(()=>iso(new Date()))
  const [selected,setSelected]=useState<Post|null>(null)
  const [slotEdit,setSlotEdit]=useState<string|null>(null)
- const [draft,setDraft]=useState({title:'',slot:0,board:0,notes:'',status:'planned' as const,date:''})
+ const [draft,setDraft]=useState<{title:string;slot:number;board:number;notes:string;status:'planned'|'ready'|'posted';date:string}>({title:'',slot:0,board:0,notes:'',status:'planned',date:''})
  useEffect(()=>{try{localStorage.setItem(KEY,JSON.stringify(data))}catch(err){console.error('Falha ao salvar calendário de conteúdo',err)}},[data])
  const first=new Date(month[0],month[1],1)
  const monthDays=useMemo(()=>{const off=(first.getDay()+6)%7;return Array.from({length:42},(_,i)=>{const d=new Date(month[0],month[1],i-off+1);return {date:iso(d),inMonth:d.getMonth()===month[1],number:d.getDate()}})},[month[0],month[1]])
