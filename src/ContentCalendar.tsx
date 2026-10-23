@@ -16,7 +16,6 @@ export default function ContentCalendar(){
  const [focus,setFocus]=useState(()=>iso(new Date()))
  const [selected,setSelected]=useState<Post|null>(null)
  const [slotEdit,setSlotEdit]=useState<string|null>(null)
- const [boardName,setBoardName]=useState('')
  const [draft,setDraft]=useState({title:'',slot:0,board:0,notes:'',date:''})
  useEffect(()=>{try{localStorage.setItem(KEY,JSON.stringify(data))}catch(err){console.error('Falha ao salvar calendário de conteúdo',err)}},[data])
  const first=new Date(month[0],month[1],1)
