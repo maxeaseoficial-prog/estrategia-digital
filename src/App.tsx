@@ -3,6 +3,7 @@ import Creatives from './Creatives'
 import Funnels from './Funnels'
 import Tasks from './Tasks'
 import EventProtocol from './EventProtocol'
+import ContentCalendar from './ContentCalendar'
 import {
   CalendarDays,
   Clapperboard,
@@ -30,7 +31,7 @@ import {
   subscribeSharedStrategyState,
 } from './sharedStore'
 
-type Page = 'dashboard' | 'events' | 'tasks' | 'campaigns' | 'funnels' | 'creatives' | 'products' | 'protocol'
+type Page = 'dashboard' | 'content-calendar' | 'events' | 'tasks' | 'campaigns' | 'funnels' | 'creatives' | 'products' | 'protocol'
 type CalendarMode = 'month' | 'week' | 'day'
 
 type ProductType = 'digital' | 'live' | 'event'
@@ -215,7 +216,7 @@ function App() {
   const [page, setPage] = useState<Page>(() => {
     try {
       const saved = window.sessionStorage.getItem('strategy-current-page')
-      return saved && (['dashboard','events','tasks','campaigns','funnels','creatives','products','protocol'] as string[]).includes(saved) ? saved as Page : 'dashboard'
+      return saved && (['dashboard','content-calendar','events','tasks','campaigns','funnels','creatives','products','protocol'] as string[]).includes(saved) ? saved as Page : 'dashboard'
     } catch { return 'dashboard' }
   })
   useEffect(() => {
@@ -560,6 +561,7 @@ function App() {
             <LayoutDashboard size={19} />
             {!collapsed && <span>Visão geral</span>}
           </button>
+          <button className={page === 'content-calendar' ? 'active' : ''} onClick={() => setPage('content-calendar')}><CalendarDays size={19}/>{!collapsed&&<span>Calendário de conteúdo</span>}</button>
           <button
             className={page === 'events' ? 'active' : ''}
             onClick={() => setPage('events')}
@@ -605,6 +607,7 @@ function App() {
             <span className="eyebrow">GESTÃO ESTRATÉGICA</span>
             <h1>
               {page === 'dashboard' && 'Calendário estratégico'}
+              {page === 'content-calendar' && 'Calendário de conteúdo'}
               {page === 'events' && 'Eventos'}
               {page === 'tasks' && 'Tarefas'}
               {page === 'protocol' && 'Protocolo'}
@@ -666,6 +669,7 @@ function App() {
         )}
 
         {page === 'funnels' && <Funnels campaigns={campaigns.map(c => ({ id:c.id, name:c.name }))} />}
+        {page === 'content-calendar' && <ContentCalendar />}
         {page === 'protocol' && <EventProtocol events={events.map(e=>({id:e.id,name:e.name,date:e.date,time:e.time,location:e.location,description:e.description,eventType:e.eventType}))} />}
         {page === 'tasks' && <Tasks onOpenProtocol={()=>setPage('protocol')} onOpenFunnel={id=>{window.sessionStorage.setItem('strategy-open-funnel',id);setPage('funnels')}} />}
         {page === 'creatives' && <Creatives campaigns={campaigns.map(c=>({id:c.id,name:c.name}))} />}
