@@ -602,7 +602,7 @@ function App() {
       </aside>
 
       <main className="main-content">
-        <header className="topbar">
+        <header className={`topbar ${page === "content-calendar" ? "content-calendar-topbar" : ""}`}>
           <div>
             <span className="eyebrow">GESTÃO ESTRATÉGICA</span>
             <h1>
